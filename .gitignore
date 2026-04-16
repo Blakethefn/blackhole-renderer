@@ -1,0 +1,51 @@
+# Build artifacts
+build/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Testing/
+_deps/
+
+# CUDA
+*.cu.o
+*.ptx
+*.cubin
+*.fatbin
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Large assets (downloaded by user)
+assets/*.exr
+assets/*.hdr
+assets/*.tif
+assets/*.tiff
+assets/*.jpg
+assets/*.png
+
+# Generated star map cache
+*.16k.exr
+*.8k.exr
+
+# User presets (optional — keep bundled ones, ignore local saves)
+presets/user/
+
+# Superpowers brainstorming session
+.superpowers/
+
+# OS
+Thumbs.db
