@@ -8,6 +8,7 @@ add_executable(bhr_tests
     unit/test_kerr.cpp
     unit/test_geodesic.cpp
     unit/test_render.cpp
+    integration/test_golden_schwarzschild.cpp
 )
 
 target_link_libraries(bhr_tests
@@ -19,4 +20,4 @@ target_link_libraries(bhr_tests
 
 # doctest auto-discovery — each TEST_CASE becomes a CTest test.
 include(${CMAKE_SOURCE_DIR}/external/doctest/scripts/cmake/doctest.cmake)
-doctest_discover_tests(bhr_tests)
+doctest_discover_tests(bhr_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
