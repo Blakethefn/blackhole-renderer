@@ -6,6 +6,7 @@ add_executable(bhr_tests
     unit/test_params.cpp
     unit/test_image.cpp
     unit/test_kerr.cpp
+    unit/test_geodesic.cpp
 )
 
 target_link_libraries(bhr_tests
