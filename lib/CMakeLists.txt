@@ -1,5 +1,6 @@
 add_library(libblackhole STATIC
     src/hello.cu
+    src/image.cpp
 )
 
 # Output name: "blackhole" → libblackhole.a
@@ -12,6 +13,8 @@ set_target_properties(libblackhole PROPERTIES
 target_include_directories(libblackhole
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+target_link_libraries(libblackhole PUBLIC bhr_stb)
 
 # Alias for downstream use
 add_library(bhr::lib ALIAS libblackhole)
