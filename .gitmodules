@@ -1,0 +1,15 @@
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "external/tinyexr"]
+	path = external/tinyexr
+	url = https://github.com/syoyo/tinyexr.git
+[submodule "external/stb"]
+	path = external/stb
+	url = https://github.com/nothings/stb.git
+[submodule "external/nlohmann_json"]
+	path = external/nlohmann_json
+	url = https://github.com/nlohmann/json.git
+[submodule "external/doctest"]
+	path = external/doctest
+	url = https://github.com/doctest/doctest.git
