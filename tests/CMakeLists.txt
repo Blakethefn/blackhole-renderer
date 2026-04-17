@@ -5,6 +5,7 @@ add_executable(bhr_tests
     unit/test_interop.cpp
     unit/test_params.cpp
     unit/test_image.cpp
+    unit/test_kerr.cpp
 )
 
 target_link_libraries(bhr_tests
