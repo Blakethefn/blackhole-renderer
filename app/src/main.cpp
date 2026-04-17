@@ -46,8 +46,14 @@ InteropTexture make_interop_texture(int w, int h) {
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
     glBindTexture(GL_TEXTURE_2D, 0);
 
-    cudaGraphicsGLRegisterImage(&t.cuda_res, t.gl_tex, GL_TEXTURE_2D,
-                                cudaGraphicsRegisterFlagsWriteDiscard);
+    cudaError_t err = cudaGraphicsGLRegisterImage(&t.cuda_res, t.gl_tex, GL_TEXTURE_2D,
+                                                  cudaGraphicsRegisterFlagsWriteDiscard);
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "cudaGraphicsGLRegisterImage failed: %s\n",
+                     cudaGetErrorString(err));
+        glDeleteTextures(1, &t.gl_tex);
+        t = {};
+    }
     return t;
 }
 
@@ -58,20 +64,43 @@ void destroy_interop_texture(InteropTexture& t) {
 }
 
 void run_gradient_once(InteropTexture& t, float seconds) {
-    cudaGraphicsMapResources(1, &t.cuda_res, 0);
+    if (!t.cuda_res) return;
+
+    cudaError_t err = cudaGraphicsMapResources(1, &t.cuda_res, 0);
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "cudaGraphicsMapResources failed: %s\n", cudaGetErrorString(err));
+        return;
+    }
 
     cudaArray_t array = nullptr;
-    cudaGraphicsSubResourceGetMappedArray(&array, t.cuda_res, 0, 0);
+    err = cudaGraphicsSubResourceGetMappedArray(&array, t.cuda_res, 0, 0);
+    if (err != cudaSuccess || array == nullptr) {
+        std::fprintf(stderr, "cudaGraphicsSubResourceGetMappedArray failed: %s\n",
+                     cudaGetErrorString(err));
+        cudaGraphicsUnmapResources(1, &t.cuda_res, 0);
+        return;
+    }
 
     cudaResourceDesc res_desc{};
     res_desc.resType = cudaResourceTypeArray;
     res_desc.res.array.array = array;
 
     cudaSurfaceObject_t surface = 0;
-    cudaCreateSurfaceObject(&surface, &res_desc);
+    err = cudaCreateSurfaceObject(&surface, &res_desc);
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "cudaCreateSurfaceObject failed: %s\n", cudaGetErrorString(err));
+        cudaGraphicsUnmapResources(1, &t.cuda_res, 0);
+        return;
+    }
 
     bhr::cuda_gradient(static_cast<unsigned long long>(surface),
                        t.width, t.height, seconds);
+
+    // Detect kernel launch errors without forcing a full device sync every frame
+    err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        std::fprintf(stderr, "gradient kernel launch failed: %s\n", cudaGetErrorString(err));
+    }
 
     cudaDestroySurfaceObject(surface);
     cudaGraphicsUnmapResources(1, &t.cuda_res, 0);
@@ -112,7 +141,6 @@ int main(int, char**) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    (void)io;
     ImGui::StyleColorsDark();
     ImGui_ImplSDL2_InitForOpenGL(window, gl_ctx);
     ImGui_ImplOpenGL3_Init(kGlslVersion);

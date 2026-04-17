@@ -34,6 +34,7 @@ TEST_CASE("cuda_gradient writes through a surface object") {
     CHECK(host[0] == 0);  // R
     CHECK(host[1] == 0);  // G
     CHECK(host[3] == 255); // A
+    CHECK(host[2] == 127); // B — pulse = 0.5 at t=0
 
     // Bottom-right corner: u=(W-1)/W, v=(H-1)/H — both near 1.
     // With W=32: R = floor(255 * 31/32) = 247.
