@@ -6,7 +6,9 @@ if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
         CACHE STRING "Vcpkg toolchain file")
 endif()
 
-project(blackhole-renderer LANGUAGES C CXX CUDA)
+project(blackhole-renderer
+    VERSION 0.0.1
+    LANGUAGES C CXX CUDA)
 
 # --- Global settings ---------------------------------------------------------
 set(CMAKE_CXX_STANDARD 17)
