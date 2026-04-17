@@ -2,6 +2,7 @@ add_library(libblackhole STATIC
     src/hello.cu
     src/image.cpp
     src/geodesic_rk45.cu
+    src/renderer.cu
 )
 
 # Output name: "blackhole" → libblackhole.a
