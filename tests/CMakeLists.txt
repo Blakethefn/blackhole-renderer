@@ -3,6 +3,7 @@ add_executable(bhr_tests
     unit/test_main.cpp
     unit/test_hello.cpp
     unit/test_interop.cpp
+    unit/test_params.cpp
 )
 
 target_link_libraries(bhr_tests
