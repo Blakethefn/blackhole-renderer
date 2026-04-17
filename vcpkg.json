@@ -1,0 +1,8 @@
+{
+  "name": "blackhole-renderer",
+  "version-string": "0.0.1",
+  "description": "Physically accurate Kerr black hole renderer",
+  "dependencies": [
+    "sdl2"
+  ]
+}
