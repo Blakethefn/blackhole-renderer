@@ -2,12 +2,14 @@
 add_executable(bhr_tests
     unit/test_main.cpp
     unit/test_hello.cpp
+    unit/test_interop.cpp
 )
 
 target_link_libraries(bhr_tests
     PRIVATE
         bhr::lib
         bhr_doctest
+        CUDA::cudart
 )
 
 # doctest auto-discovery — each TEST_CASE becomes a CTest test.

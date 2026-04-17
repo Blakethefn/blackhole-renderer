@@ -32,6 +32,7 @@ option(BHR_BUILD_TESTS "Build unit tests" ON)
 option(BHR_BUILD_APP "Build the GUI workbench" ON)
 
 # --- External dependencies ---------------------------------------------------
+find_package(CUDAToolkit REQUIRED)
 find_package(SDL2 CONFIG REQUIRED)
 find_package(OpenGL REQUIRED)
 

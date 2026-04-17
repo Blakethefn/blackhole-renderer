@@ -1,6 +1,7 @@
-// SDL2 + OpenGL 3.3 + Dear ImGui bootstrap.
-// Opens a window, runs the ImGui frame loop, displays a "Hello" panel showing
-// the detected CUDA device. No rendering yet — that arrives in Task 22.
+// SDL2 + OpenGL 3.3 + Dear ImGui + CUDA-GL interop.
+// Allocates an RGBA8 GL texture, registers it with CUDA, and on each frame
+// runs a CUDA kernel that writes a pulsing gradient. ImGui displays the
+// texture inside a panel.
 
 #include <glad/glad.h>
 #include <SDL.h>
@@ -12,24 +13,77 @@
 
 #include "bhr/hello.hpp"
 
+#include <cuda_runtime.h>
+#include <cuda_gl_interop.h>
+
 #include <cstdio>
+#include <cstdint>
 
 namespace {
 
 constexpr int kInitialWidth = 1280;
 constexpr int kInitialHeight = 720;
+constexpr int kTextureWidth = 512;
+constexpr int kTextureHeight = 288;
 constexpr const char* kGlslVersion = "#version 330 core";
+
+struct InteropTexture {
+    GLuint gl_tex = 0;
+    cudaGraphicsResource* cuda_res = nullptr;
+    int width = 0;
+    int height = 0;
+};
+
+InteropTexture make_interop_texture(int w, int h) {
+    InteropTexture t{};
+    t.width = w;
+    t.height = h;
+
+    glGenTextures(1, &t.gl_tex);
+    glBindTexture(GL_TEXTURE_2D, t.gl_tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    cudaGraphicsGLRegisterImage(&t.cuda_res, t.gl_tex, GL_TEXTURE_2D,
+                                cudaGraphicsRegisterFlagsWriteDiscard);
+    return t;
+}
+
+void destroy_interop_texture(InteropTexture& t) {
+    if (t.cuda_res) cudaGraphicsUnregisterResource(t.cuda_res);
+    if (t.gl_tex) glDeleteTextures(1, &t.gl_tex);
+    t = {};
+}
+
+void run_gradient_once(InteropTexture& t, float seconds) {
+    cudaGraphicsMapResources(1, &t.cuda_res, 0);
+
+    cudaArray_t array = nullptr;
+    cudaGraphicsSubResourceGetMappedArray(&array, t.cuda_res, 0, 0);
+
+    cudaResourceDesc res_desc{};
+    res_desc.resType = cudaResourceTypeArray;
+    res_desc.res.array.array = array;
+
+    cudaSurfaceObject_t surface = 0;
+    cudaCreateSurfaceObject(&surface, &res_desc);
+
+    bhr::cuda_gradient(static_cast<unsigned long long>(surface),
+                       t.width, t.height, seconds);
+
+    cudaDestroySurfaceObject(surface);
+    cudaGraphicsUnmapResources(1, &t.cuda_res, 0);
+}
 
 } // namespace
 
 int main(int, char**) {
-    // --- SDL initialization --------------------------------------------------
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
         std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
         return 1;
     }
-
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
@@ -48,24 +102,26 @@ int main(int, char**) {
 
     auto gl_ctx = SDL_GL_CreateContext(window);
     SDL_GL_MakeCurrent(window, gl_ctx);
-    SDL_GL_SetSwapInterval(1); // vsync
+    SDL_GL_SetSwapInterval(1);
 
     if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(SDL_GL_GetProcAddress))) {
         std::fprintf(stderr, "glad failed to load OpenGL\n");
         return 1;
     }
 
-    // --- ImGui initialization ------------------------------------------------
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
     ImGui::StyleColorsDark();
-
     ImGui_ImplSDL2_InitForOpenGL(window, gl_ctx);
     ImGui_ImplOpenGL3_Init(kGlslVersion);
 
-    // --- Main loop ------------------------------------------------------------
+    auto tex = make_interop_texture(kTextureWidth, kTextureHeight);
+
+    const Uint64 start_ticks = SDL_GetPerformanceCounter();
+    const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
+
     bool running = true;
     while (running) {
         SDL_Event ev;
@@ -79,6 +135,9 @@ int main(int, char**) {
             }
         }
 
+        const double elapsed = static_cast<double>(SDL_GetPerformanceCounter() - start_ticks) / freq;
+        run_gradient_once(tex, static_cast<float>(elapsed));
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
@@ -87,7 +146,13 @@ int main(int, char**) {
         ImGui::Text("blackhole-workbench v0.0.1");
         ImGui::Separator();
         ImGui::Text("CUDA device: %s", bhr::cuda_device_name());
-        ImGui::Text("Sanity check: 1 + 2 = %d (from GPU)", bhr::cuda_add(1, 2));
+        ImGui::Text("FPS: %.1f", io.Framerate);
+        ImGui::End();
+
+        ImGui::Begin("Viewport");
+        ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(tex.gl_tex)),
+                     ImVec2(static_cast<float>(kTextureWidth),
+                            static_cast<float>(kTextureHeight)));
         ImGui::End();
 
         ImGui::Render();
@@ -100,7 +165,8 @@ int main(int, char**) {
         SDL_GL_SwapWindow(window);
     }
 
-    // --- Shutdown -------------------------------------------------------------
+    destroy_interop_texture(tex);
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
