@@ -13,6 +13,7 @@ add_executable(bhr_tests
     unit/test_disk_physics.cpp
     unit/test_elliptic.cpp
     unit/test_ferrari.cpp
+    unit/test_geokerr.cpp
     integration/test_golden_schwarzschild.cpp
 )
 

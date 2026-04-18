@@ -2,6 +2,7 @@ add_library(libblackhole STATIC
     src/hello.cu
     src/image.cpp
     src/geodesic_rk45.cu
+    src/geodesic_geokerr.cu
     src/renderer.cu
     src/starfield.cu
 )

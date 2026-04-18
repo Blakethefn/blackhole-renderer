@@ -129,4 +129,20 @@ struct IntegratorConfig {
 BHR_HD HitInfo integrate_rk45(GeodesicState s, float a, const Conserved& c,
                               const IntegratorConfig& cfg);
 
+/// Dexter-Agol (2009) semi-analytic geodesic integrator.
+/// Same contract as integrate_rk45: returns HitType + final (r, theta, phi, lambda).
+/// The `steps` field records the number of real radial quartic roots found
+/// (profiling slot — useful for debugging orbit classification).
+///
+/// Accuracy notes (v1):
+/// - Uses Ferrari closed-form root solve on the radial quartic U(u).
+/// - Uses exact Carlson R_F for the polar quarter-period.
+/// - Radial integrals and radial-inversion are APPROXIMATED in v1 (clearly
+///   marked in the implementation). See Task 3.4 for exact replacements.
+/// - Assumes Q >= 0. Q = 0 (equatorial) handled as a special case.
+/// - Uses IntegratorConfig.disk_r_inner, disk_r_outer, r_max, horizon_eps.
+/// - Ignores IntegratorConfig.tol, h_init, h_min, h_max, max_steps.
+BHR_HD HitInfo integrate_geokerr(GeodesicState s, float a, const Conserved& c,
+                                 const IntegratorConfig& cfg);
+
 } // namespace bhr
