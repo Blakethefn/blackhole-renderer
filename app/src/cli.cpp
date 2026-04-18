@@ -42,6 +42,7 @@ void print_usage(const char* argv0) {
         "  --disk-inner R       disk inner radius in M, default 6\n"
         "  --disk-outer R       disk outer radius in M, default 20\n"
         "  --starfield PATH     HDR EXR equirectangular starfield (optional)\n"
+        "  --integrator NAME    integrator to use: rk45 (default) or geokerr\n"
         "  --output FILE        output PNG path (required)\n",
         argv0);
 }
@@ -85,6 +86,16 @@ int main(int argc, char** argv) {
             params.disk.r_outer = std::strtof(next("--disk-outer"), nullptr);
         } else if (arg == "--starfield") {
             starfield_path = next("--starfield");
+        } else if (arg == "--integrator") {
+            const std::string val = next("--integrator");
+            if (val == "rk45") {
+                params.integrator = bhr::IntegratorKind::kRK45;
+            } else if (val == "geokerr") {
+                params.integrator = bhr::IntegratorKind::kGeokerr;
+            } else {
+                std::fprintf(stderr, "Unknown integrator: %s (expected rk45 or geokerr)\n", val.c_str());
+                return 2;
+            }
         } else if (arg == "--output") {
             out_path = next("--output");
         } else if (arg == "-h" || arg == "--help") {
