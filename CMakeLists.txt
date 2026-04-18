@@ -40,8 +40,14 @@ find_package(OpenGL REQUIRED)
 add_library(bhr_stb INTERFACE)
 target_include_directories(bhr_stb INTERFACE ${CMAKE_SOURCE_DIR}/external/stb)
 
-add_library(bhr_tinyexr INTERFACE)
-target_include_directories(bhr_tinyexr INTERFACE ${CMAKE_SOURCE_DIR}/external/tinyexr)
+add_library(bhr_tinyexr STATIC
+    ${CMAKE_SOURCE_DIR}/external/tinyexr/deps/miniz/miniz.c
+)
+target_include_directories(bhr_tinyexr PUBLIC
+    ${CMAKE_SOURCE_DIR}/external/tinyexr
+    ${CMAKE_SOURCE_DIR}/external/tinyexr/deps/miniz
+)
+set_target_properties(bhr_tinyexr PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 add_library(bhr_json INTERFACE)
 target_include_directories(bhr_json INTERFACE ${CMAKE_SOURCE_DIR}/external/nlohmann_json/include)

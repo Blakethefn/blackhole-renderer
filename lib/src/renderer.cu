@@ -1,4 +1,5 @@
 #include "bhr/renderer.hpp"
+#include "bhr/starfield.hpp"
 #include "bhr/camera.hpp"
 #include "bhr/geodesic.hpp"
 #include "bhr/kerr.hpp"
@@ -14,7 +15,8 @@ namespace {
 
 __global__ void render_kernel(
     uchar4* fb, int width, int height,
-    CameraParams cam, DiskParams disk, float a)
+    CameraParams cam, DiskParams disk, float a,
+    cudaTextureObject_t starfield_tex, int starfield_valid)
 {
     const int px = blockIdx.x * blockDim.x + threadIdx.x;
     const int py = blockIdx.y * blockDim.y + threadIdx.y;
@@ -66,9 +68,30 @@ __global__ void render_kernel(
             color.z = static_cast<unsigned char>(fminf(1.0f, bb) * 255.0f);
             break;
         }
-        case HitType::kEscape:
-            color.x = 2; color.y = 4; color.z = 8;
+        case HitType::kEscape: {
+            if (starfield_valid) {
+                // Equirectangular sampling of the lensed escape direction.
+                // hit.theta and hit.phi are the final BL coordinates at r_max.
+                const float PI = 3.14159265358979323846f;
+                float phi_w = hit.phi;
+                // Wrap phi into [0, 2π)
+                phi_w = phi_w - 2.0f * PI * floorf(phi_w / (2.0f * PI));
+                const float u = phi_w / (2.0f * PI);
+                const float v = hit.theta / PI;
+                float4 star = tex2D<float4>(starfield_tex, u, v);
+                // Reinhard tone map (star map is HDR so exposure matters)
+                const float exposure = 0.15f;
+                star.x = star.x * exposure / (1.0f + star.x * exposure);
+                star.y = star.y * exposure / (1.0f + star.y * exposure);
+                star.z = star.z * exposure / (1.0f + star.z * exposure);
+                color.x = static_cast<unsigned char>(fminf(1.0f, star.x) * 255.0f);
+                color.y = static_cast<unsigned char>(fminf(1.0f, star.y) * 255.0f);
+                color.z = static_cast<unsigned char>(fminf(1.0f, star.z) * 255.0f);
+            } else {
+                color.x = 2; color.y = 4; color.z = 8;
+            }
             break;
+        }
         case HitType::kUnknown:
             color.x = 255; color.y = 0; color.z = 255;
             break;
@@ -79,7 +102,7 @@ __global__ void render_kernel(
 
 } // namespace
 
-void render(const RenderParams& params, Image& img) {
+void render(const RenderParams& params, const Starfield& sf, Image& img) {
     const int W = params.camera.width;
     const int H = params.camera.height;
     img.allocate(W, H);
@@ -95,7 +118,8 @@ void render(const RenderParams& params, Image& img) {
     dim3 block(16, 16);
     dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
 
-    render_kernel<<<grid, block>>>(d_fb, W, H, params.camera, params.disk, params.spin);
+    render_kernel<<<grid, block>>>(d_fb, W, H, params.camera, params.disk, params.spin,
+                                   sf.tex, sf.is_valid() ? 1 : 0);
 
     err = cudaGetLastError();
     if (err != cudaSuccess) {

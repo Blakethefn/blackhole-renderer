@@ -4,11 +4,17 @@
 
 #include "bhr/params.hpp"
 #include "bhr/image.hpp"
+#include "bhr/starfield.hpp"
 
 namespace bhr {
 
-/// Render the scene described by @p params into @p img. Resizes img if needed.
-/// Synchronous — returns when the render is complete and the image is on the host.
-void render(const RenderParams& params, Image& img);
+/// Render with optional starfield. If sf.is_valid() is false, escape uses dim blue.
+void render(const RenderParams& params, const Starfield& sf, Image& img);
+
+/// Backwards-compatible overload without a starfield.
+inline void render(const RenderParams& params, Image& img) {
+    Starfield empty;
+    render(params, empty, img);
+}
 
 } // namespace bhr
