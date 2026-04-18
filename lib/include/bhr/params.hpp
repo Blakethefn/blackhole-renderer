@@ -6,6 +6,8 @@
 
 namespace bhr {
 
+enum class IntegratorKind : int { kRK45 = 0, kGeokerr = 1 };
+
 struct CameraParams {
     float r_cam = 50.0f;
     float theta_cam_deg = 85.0f;
@@ -30,6 +32,7 @@ struct RenderParams {
     bool enable_redshift = true;
     bool enable_beaming = true;
     bool enable_starfield = false;
+    IntegratorKind integrator = IntegratorKind::kRK45;
 };
 
 static_assert(sizeof(RenderParams) < 256, "RenderParams is too large for constant memory upload");

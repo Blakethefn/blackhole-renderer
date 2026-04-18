@@ -14,3 +14,8 @@ TEST_CASE("RenderParams defaults match design spec") {
     CHECK(p.enable_starfield == false);
     CHECK(p.enable_doppler == true);
 }
+
+TEST_CASE("RenderParams default integrator is RK45") {
+    bhr::RenderParams p;
+    CHECK(p.integrator == bhr::IntegratorKind::kRK45);
+}
