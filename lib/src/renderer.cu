@@ -16,7 +16,8 @@ namespace {
 __global__ void render_kernel(
     uchar4* fb, int width, int height,
     CameraParams cam, DiskParams disk, float a,
-    cudaTextureObject_t starfield_tex, int starfield_valid)
+    cudaTextureObject_t starfield_tex, int starfield_valid,
+    IntegratorKind integrator_kind)
 {
     const int px = blockIdx.x * blockDim.x + threadIdx.x;
     const int py = blockIdx.y * blockDim.y + threadIdx.y;
@@ -39,7 +40,9 @@ __global__ void render_kernel(
     }
     cfg.h_min = 1e-6f;
 
-    const HitInfo hit = integrate_rk45(s, a, c, cfg);
+    const HitInfo hit = (integrator_kind == IntegratorKind::kGeokerr)
+        ? integrate_geokerr(s, a, c, cfg)
+        : integrate_rk45(s, a, c, cfg);
 
     uchar4 color;
     color.x = 0; color.y = 0; color.z = 0; color.w = 255;
@@ -119,7 +122,7 @@ void render(const RenderParams& params, const Starfield& sf, Image& img) {
     dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
 
     render_kernel<<<grid, block>>>(d_fb, W, H, params.camera, params.disk, params.spin,
-                                   sf.tex, sf.is_valid() ? 1 : 0);
+                                   sf.tex, sf.is_valid() ? 1 : 0, params.integrator);
 
     err = cudaGetLastError();
     if (err != cudaSuccess) {
