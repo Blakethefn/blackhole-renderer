@@ -4,6 +4,7 @@
 #include "bhr/kerr.hpp"
 #include "bhr/disk_physics.hpp"
 #include "bhr/blackbody.hpp"
+#include "bhr/redshift.hpp"
 #include <cuda_runtime.h>
 #include <cstdio>
 
@@ -45,13 +46,18 @@ __global__ void render_kernel(
         case HitType::kHorizon:
             break;  // Stay black
         case HitType::kDisk: {
-            const float T = disk_temperature(hit.r, disk.r_inner, disk.peak_temp_K);
+            const float T_emit = disk_temperature(hit.r, disk.r_inner, disk.peak_temp_K);
+            // g combines gravitational + Doppler
+            const float g = redshift_disk_to_infinity(hit.r, a, c);
+            const float T_obs = g * T_emit;
             float rr, gg, bb;
-            blackbody_rgb(T, rr, gg, bb);
-            // Simple intensity model: log(T) scaled — keeps dynamic range sensible.
-            // Proper beaming g^4 applied in Unit 4.
-            const float intensity = logf(fmaxf(T, 1.0f)) / logf(40000.0f);  // 0..~1 for T up to 40kK
-            const float exposure = 1.5f * disk.brightness * intensity;
+            blackbody_rgb(T_obs, rr, gg, bb);
+            // Beaming: bolometric intensity scales as g^4.
+            // Combine with log(T)-based emissivity (intrinsic brightness proxy).
+            const float g2 = g * g;
+            const float beaming = g2 * g2;
+            const float emissivity = logf(fmaxf(T_emit, 1.0f)) / logf(40000.0f);
+            const float exposure = 1.5f * disk.brightness * emissivity * beaming;
             rr = rr * exposure / (1.0f + rr * exposure);
             gg = gg * exposure / (1.0f + gg * exposure);
             bb = bb * exposure / (1.0f + bb * exposure);

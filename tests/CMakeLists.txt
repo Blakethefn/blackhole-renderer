@@ -9,6 +9,7 @@ add_executable(bhr_tests
     unit/test_geodesic.cpp
     unit/test_render.cpp
     unit/test_blackbody.cpp
+    unit/test_redshift.cpp
     unit/test_disk_physics.cpp
     integration/test_golden_schwarzschild.cpp
 )
