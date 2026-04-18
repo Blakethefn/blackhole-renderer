@@ -1,70 +1,49 @@
 #pragma once
 /// @file bhr/blackbody.hpp
-/// Blackbody (Planck) spectrum to approximate sRGB color mapping.
+/// Fast blackbody temperature → sRGB approximation (Tanner Helland).
+/// Accurate to ~5% for 1000-40000 K, sufficient for visual rendering.
 ///
-/// Converts a blackbody temperature in Kelvin to linear-light RGB
-/// using a fast piecewise polynomial fit to the CIE 1931 color matching
-/// functions integrated against Planck's law.  Output channels are
-/// un-normalized radiance proportional values suitable for tone mapping.
-///
-/// Reference: "Blackbody Radiation" approximation by Charity (2001) and
-/// Tanner Helland's blog post on planckian locus approximation.
+/// Returns normalized linear-space RGB in [0, 1]. Intensity (Stefan-Boltzmann)
+/// and relativistic beaming (g^4) are applied externally by the caller.
 
-#include "bhr/kerr.hpp"   // for BHR_HD
+#include "bhr/kerr.hpp"  // for BHR_HD macro
 #include <cmath>
 
 namespace bhr {
 
-/// Convert blackbody temperature T (Kelvin) to linear-light RGB.
-/// Output values are in [0, +inf) representing relative spectral radiance.
-/// Caller is responsible for tone mapping.
-BHR_HD inline void blackbody_rgb(float T, float& r, float& g, float& b) {
-    // Clamp temperature to a sensible range
-    const float Tc = fmaxf(800.0f, fminf(T, 4.0e7f));
+/// @return linear-space RGB (each in [0, ~1]) for a blackbody at @p T_kelvin.
+/// Temperatures outside 1000..40000 K are clamped.
+BHR_HD inline void blackbody_rgb(float T_kelvin, float& r, float& g, float& b) {
+    const float T = fmaxf(1000.0f, fminf(40000.0f, T_kelvin));
+    const float t = T / 100.0f;
 
-    // --- Red channel ---
-    if (Tc <= 6600.0f) {
+    // Red
+    if (t <= 66.0f) {
         r = 1.0f;
     } else {
-        // T in hundreds of Kelvin, offset by 60
-        float t = Tc / 100.0f - 60.0f;
-        r = 329.698727446f * powf(t, -0.1332047592f) / 255.0f;
-        r = fmaxf(0.0f, fminf(1.0f, r));
+        const float x = t - 60.0f;
+        r = 329.698727446f * powf(x, -0.1332047592f);
+        r = fmaxf(0.0f, fminf(1.0f, r / 255.0f));
     }
 
-    // --- Green channel ---
-    if (Tc <= 6600.0f) {
-        float t = Tc / 100.0f;
-        g = (99.4708025861f * logf(t) - 161.1195681661f) / 255.0f;
-        g = fmaxf(0.0f, fminf(1.0f, g));
+    // Green
+    if (t <= 66.0f) {
+        g = 99.4708025861f * logf(t) - 161.1195681661f;
     } else {
-        float t = Tc / 100.0f - 60.0f;
-        g = 288.1221695283f * powf(t, -0.0755148492f) / 255.0f;
-        g = fmaxf(0.0f, fminf(1.0f, g));
+        const float x = t - 60.0f;
+        g = 288.1221695283f * powf(x, -0.0755148492f);
     }
+    g = fmaxf(0.0f, fminf(1.0f, g / 255.0f));
 
-    // --- Blue channel ---
-    if (Tc >= 6600.0f) {
+    // Blue
+    if (t >= 66.0f) {
         b = 1.0f;
-    } else if (Tc <= 1900.0f) {
+    } else if (t <= 19.0f) {
         b = 0.0f;
     } else {
-        float t = Tc / 100.0f - 10.0f;
-        b = (138.5177312231f * logf(t) - 305.0447927307f) / 255.0f;
-        b = fmaxf(0.0f, fminf(1.0f, b));
+        b = 138.5177312231f * logf(t - 10.0f) - 305.0447927307f;
+        b = fmaxf(0.0f, fminf(1.0f, b / 255.0f));
     }
-
-    // Scale by Stefan-Boltzmann T^4 for radiance magnitude (relative).
-    // Normalize against a reference temperature of 6500 K so that
-    // a 6500 K source has unit intensity.  This keeps tone-map exposure
-    // tuning intuitive.
-    const float T_ref = 6500.0f;
-    const float t_norm = Tc / T_ref;
-    const float intensity = t_norm * t_norm * t_norm * t_norm;
-
-    r *= intensity;
-    g *= intensity;
-    b *= intensity;
 }
 
 } // namespace bhr

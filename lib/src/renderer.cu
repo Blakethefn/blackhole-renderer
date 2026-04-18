@@ -48,8 +48,10 @@ __global__ void render_kernel(
             const float T = disk_temperature(hit.r, disk.r_inner, disk.peak_temp_K);
             float rr, gg, bb;
             blackbody_rgb(T, rr, gg, bb);
-            // Reinhard tone map with an exposure factor
-            const float exposure = 0.5f * disk.brightness;
+            // Simple intensity model: log(T) scaled — keeps dynamic range sensible.
+            // Proper beaming g^4 applied in Unit 4.
+            const float intensity = logf(fmaxf(T, 1.0f)) / logf(40000.0f);  // 0..~1 for T up to 40kK
+            const float exposure = 1.5f * disk.brightness * intensity;
             rr = rr * exposure / (1.0f + rr * exposure);
             gg = gg * exposure / (1.0f + gg * exposure);
             bb = bb * exposure / (1.0f + bb * exposure);
