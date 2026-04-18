@@ -2,6 +2,8 @@
 #include "bhr/camera.hpp"
 #include "bhr/geodesic.hpp"
 #include "bhr/kerr.hpp"
+#include "bhr/disk_physics.hpp"
+#include "bhr/blackbody.hpp"
 #include <cuda_runtime.h>
 #include <cstdio>
 
@@ -43,10 +45,17 @@ __global__ void render_kernel(
         case HitType::kHorizon:
             break;  // Stay black
         case HitType::kDisk: {
-            const float t = (hit.r - disk.r_inner) / (disk.r_outer - disk.r_inner);
-            color.x = static_cast<unsigned char>(255.0f * (1.0f - t));
-            color.y = static_cast<unsigned char>(180.0f * (1.0f - 0.5f * t));
-            color.z = static_cast<unsigned char>(80.0f);
+            const float T = disk_temperature(hit.r, disk.r_inner, disk.peak_temp_K);
+            float rr, gg, bb;
+            blackbody_rgb(T, rr, gg, bb);
+            // Reinhard tone map with an exposure factor
+            const float exposure = 0.5f * disk.brightness;
+            rr = rr * exposure / (1.0f + rr * exposure);
+            gg = gg * exposure / (1.0f + gg * exposure);
+            bb = bb * exposure / (1.0f + bb * exposure);
+            color.x = static_cast<unsigned char>(fminf(1.0f, rr) * 255.0f);
+            color.y = static_cast<unsigned char>(fminf(1.0f, gg) * 255.0f);
+            color.z = static_cast<unsigned char>(fminf(1.0f, bb) * 255.0f);
             break;
         }
         case HitType::kEscape:
