@@ -3,11 +3,12 @@
 // Usage:
 //   blackhole-cli [--spin A] [--resolution WxH] [--inclination DEG]
 //                 [--fov DEG] [--distance M] [--disk-inner R] [--disk-outer R]
-//                 --output FILE
+//                 [--starfield PATH] --output FILE
 
 #include "bhr/renderer.hpp"
 #include "bhr/image.hpp"
 #include "bhr/params.hpp"
+#include "bhr/starfield.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -40,6 +41,7 @@ void print_usage(const char* argv0) {
         "  --distance M         camera radius in M, default 50\n"
         "  --disk-inner R       disk inner radius in M, default 6\n"
         "  --disk-outer R       disk outer radius in M, default 20\n"
+        "  --starfield PATH     HDR EXR equirectangular starfield (optional)\n"
         "  --output FILE        output PNG path (required)\n",
         argv0);
 }
@@ -49,6 +51,7 @@ void print_usage(const char* argv0) {
 int main(int argc, char** argv) {
     bhr::RenderParams params{};
     std::string out_path;
+    std::string starfield_path;
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];
@@ -80,6 +83,8 @@ int main(int argc, char** argv) {
             params.disk.r_inner = std::strtof(next("--disk-inner"), nullptr);
         } else if (arg == "--disk-outer") {
             params.disk.r_outer = std::strtof(next("--disk-outer"), nullptr);
+        } else if (arg == "--starfield") {
+            starfield_path = next("--starfield");
         } else if (arg == "--output") {
             out_path = next("--output");
         } else if (arg == "-h" || arg == "--help") {
@@ -104,11 +109,20 @@ int main(int argc, char** argv) {
         params.camera.theta_cam_deg, params.camera.fov_deg, params.camera.r_cam,
         out_path.c_str());
 
+    bhr::Starfield sf;
+    if (!starfield_path.empty()) {
+        if (!bhr::load_starfield(starfield_path, 16384, sf)) {
+            std::fprintf(stderr, "Warning: starfield load failed, continuing without\n");
+        }
+    }
+
     bhr::Image img;
     const auto t0 = std::chrono::steady_clock::now();
-    bhr::render(params, img);
+    bhr::render(params, sf, img);
     const auto t1 = std::chrono::steady_clock::now();
     const double seconds = std::chrono::duration<double>(t1 - t0).count();
+
+    bhr::destroy_starfield(sf);
 
     if (img.width == 0) {
         std::fprintf(stderr, "Render failed (image is empty)\n");

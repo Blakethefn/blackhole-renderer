@@ -1,7 +1,11 @@
 #include "bhr/renderer.hpp"
+#include "bhr/starfield.hpp"
 #include "bhr/camera.hpp"
 #include "bhr/geodesic.hpp"
 #include "bhr/kerr.hpp"
+#include "bhr/disk_physics.hpp"
+#include "bhr/blackbody.hpp"
+#include "bhr/redshift.hpp"
 #include <cuda_runtime.h>
 #include <cstdio>
 
@@ -11,7 +15,8 @@ namespace {
 
 __global__ void render_kernel(
     uchar4* fb, int width, int height,
-    CameraParams cam, DiskParams disk, float a)
+    CameraParams cam, DiskParams disk, float a,
+    cudaTextureObject_t starfield_tex, int starfield_valid)
 {
     const int px = blockIdx.x * blockDim.x + threadIdx.x;
     const int py = blockIdx.y * blockDim.y + threadIdx.y;
@@ -43,15 +48,50 @@ __global__ void render_kernel(
         case HitType::kHorizon:
             break;  // Stay black
         case HitType::kDisk: {
-            const float t = (hit.r - disk.r_inner) / (disk.r_outer - disk.r_inner);
-            color.x = static_cast<unsigned char>(255.0f * (1.0f - t));
-            color.y = static_cast<unsigned char>(180.0f * (1.0f - 0.5f * t));
-            color.z = static_cast<unsigned char>(80.0f);
+            const float T_emit = disk_temperature(hit.r, disk.r_inner, disk.peak_temp_K);
+            // g combines gravitational + Doppler
+            const float g = redshift_disk_to_infinity(hit.r, a, c);
+            const float T_obs = g * T_emit;
+            float rr, gg, bb;
+            blackbody_rgb(T_obs, rr, gg, bb);
+            // Beaming: bolometric intensity scales as g^4.
+            // Combine with log(T)-based emissivity (intrinsic brightness proxy).
+            const float g2 = g * g;
+            const float beaming = g2 * g2;
+            const float emissivity = logf(fmaxf(T_emit, 1.0f)) / logf(40000.0f);
+            const float exposure = 1.5f * disk.brightness * emissivity * beaming;
+            rr = rr * exposure / (1.0f + rr * exposure);
+            gg = gg * exposure / (1.0f + gg * exposure);
+            bb = bb * exposure / (1.0f + bb * exposure);
+            color.x = static_cast<unsigned char>(fminf(1.0f, rr) * 255.0f);
+            color.y = static_cast<unsigned char>(fminf(1.0f, gg) * 255.0f);
+            color.z = static_cast<unsigned char>(fminf(1.0f, bb) * 255.0f);
             break;
         }
-        case HitType::kEscape:
-            color.x = 2; color.y = 4; color.z = 8;
+        case HitType::kEscape: {
+            if (starfield_valid) {
+                // Equirectangular sampling of the lensed escape direction.
+                // hit.theta and hit.phi are the final BL coordinates at r_max.
+                const float PI = 3.14159265358979323846f;
+                float phi_w = hit.phi;
+                // Wrap phi into [0, 2π)
+                phi_w = phi_w - 2.0f * PI * floorf(phi_w / (2.0f * PI));
+                const float u = phi_w / (2.0f * PI);
+                const float v = hit.theta / PI;
+                float4 star = tex2D<float4>(starfield_tex, u, v);
+                // Reinhard tone map (star map is HDR so exposure matters)
+                const float exposure = 0.15f;
+                star.x = star.x * exposure / (1.0f + star.x * exposure);
+                star.y = star.y * exposure / (1.0f + star.y * exposure);
+                star.z = star.z * exposure / (1.0f + star.z * exposure);
+                color.x = static_cast<unsigned char>(fminf(1.0f, star.x) * 255.0f);
+                color.y = static_cast<unsigned char>(fminf(1.0f, star.y) * 255.0f);
+                color.z = static_cast<unsigned char>(fminf(1.0f, star.z) * 255.0f);
+            } else {
+                color.x = 2; color.y = 4; color.z = 8;
+            }
             break;
+        }
         case HitType::kUnknown:
             color.x = 255; color.y = 0; color.z = 255;
             break;
@@ -62,7 +102,7 @@ __global__ void render_kernel(
 
 } // namespace
 
-void render(const RenderParams& params, Image& img) {
+void render(const RenderParams& params, const Starfield& sf, Image& img) {
     const int W = params.camera.width;
     const int H = params.camera.height;
     img.allocate(W, H);
@@ -78,7 +118,8 @@ void render(const RenderParams& params, Image& img) {
     dim3 block(16, 16);
     dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
 
-    render_kernel<<<grid, block>>>(d_fb, W, H, params.camera, params.disk, params.spin);
+    render_kernel<<<grid, block>>>(d_fb, W, H, params.camera, params.disk, params.spin,
+                                   sf.tex, sf.is_valid() ? 1 : 0);
 
     err = cudaGetLastError();
     if (err != cudaSuccess) {

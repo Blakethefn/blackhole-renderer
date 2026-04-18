@@ -3,6 +3,7 @@ add_library(libblackhole STATIC
     src/image.cpp
     src/geodesic_rk45.cu
     src/renderer.cu
+    src/starfield.cu
 )
 
 # Output name: "blackhole" → libblackhole.a
@@ -16,7 +17,7 @@ target_include_directories(libblackhole
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(libblackhole PUBLIC bhr_stb)
+target_link_libraries(libblackhole PUBLIC bhr_stb bhr_tinyexr)
 
 # Alias for downstream use
 add_library(bhr::lib ALIAS libblackhole)
