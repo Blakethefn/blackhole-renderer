@@ -15,6 +15,8 @@ add_executable(bhr_tests
     unit/test_ferrari.cpp
     unit/test_geokerr.cpp
     integration/test_golden_schwarzschild.cpp
+    integration/test_dual_integrator_rays.cpp
+    integration/test_dual_integrator_psnr.cpp
 )
 
 target_link_libraries(bhr_tests
