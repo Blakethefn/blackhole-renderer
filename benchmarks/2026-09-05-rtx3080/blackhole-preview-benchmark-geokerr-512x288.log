@@ -1,0 +1,17 @@
+GPU: NVIDIA GeForce RTX 3080; GL renderer: NVIDIA GeForce RTX 3080/PCIe/SSE2; SDL video: x11
+Scene: workbench_preset; resolution=512x288 integrator=geokerr warmup=2 frames=10 ui_hz=60 hidden_window=1280x720 swap_interval=0
+spin=0.900 camera=(r=30.0 incl=85.0 azimuth=0.0 fov=35.0) disk=(inner=2.321 outer=20.0 temperature=40000.0 brightness=1.0) doppler=on redshift=on beaming=on starfield=off
+Geokerr is approximate; RK45 remains the correctness reference.
+sample=1 resolution=512x288 integrator=geokerr gpu_ms=1.425 preview_ms=50.171
+sample=2 resolution=512x288 integrator=geokerr gpu_ms=1.431 preview_ms=50.160
+sample=3 resolution=512x288 integrator=geokerr gpu_ms=1.427 preview_ms=50.164
+sample=4 resolution=512x288 integrator=geokerr gpu_ms=1.427 preview_ms=50.169
+sample=5 resolution=512x288 integrator=geokerr gpu_ms=1.396 preview_ms=50.164
+sample=6 resolution=512x288 integrator=geokerr gpu_ms=1.396 preview_ms=50.180
+sample=7 resolution=512x288 integrator=geokerr gpu_ms=1.424 preview_ms=50.185
+sample=8 resolution=512x288 integrator=geokerr gpu_ms=1.434 preview_ms=50.181
+sample=9 resolution=512x288 integrator=geokerr gpu_ms=1.394 preview_ms=50.175
+sample=10 resolution=512x288 integrator=geokerr gpu_ms=1.413 preview_ms=50.196
+mean_gpu_ms=1.416 min_gpu_ms=1.394 max_gpu_ms=1.434 mean_preview_ms=50.174 min_preview_ms=50.160 max_preview_ms=50.196 preview_throughput_fps=19.930 measured_elapsed_ms=501.755 target_mean_3fps=met all_frames_within_333ms=yes
+ui_frames=31 mean_ui_interval_ms=16.725 max_ui_interval_ms=16.732 mean_ui_work_ms=0.092 max_ui_work_ms=0.404 heartbeat_events=31 mean_event_latency_ms=8.258 max_event_latency_ms=17.000
+Preview timing ends after the GL upload fence; warmup excludes allocation. UI work includes ImGui drawing and swap; UI intervals include pacing. Hidden-window results exclude monitor scanout.

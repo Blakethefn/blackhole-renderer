@@ -1,0 +1,15 @@
+GPU: NVIDIA GeForce RTX 3080; CUDA runtime=12000 driver=13020; device=0
+Scene: workbench_preset; resolution=1024x576 integrator=geokerr warmup=2 frames=10
+spin=0.900 camera=(r=30.0 incl=85.0 azimuth=0.0 fov=35.0) disk=(inner=2.321 outer=20.0 temperature=40000.0 brightness=1.0) doppler=on redshift=on beaming=on starfield=off
+Geokerr is approximate and has known image-agreement limitations; RK45 is the correctness reference.
+sample=1 resolution=1024x576 integrator=geokerr gpu_ms=69.043 wall_ms=69.409
+sample=2 resolution=1024x576 integrator=geokerr gpu_ms=65.985 wall_ms=66.614
+sample=3 resolution=1024x576 integrator=geokerr gpu_ms=66.706 wall_ms=67.015
+sample=4 resolution=1024x576 integrator=geokerr gpu_ms=66.031 wall_ms=66.041
+sample=5 resolution=1024x576 integrator=geokerr gpu_ms=65.863 wall_ms=66.492
+sample=6 resolution=1024x576 integrator=geokerr gpu_ms=66.460 wall_ms=66.472
+sample=7 resolution=1024x576 integrator=geokerr gpu_ms=65.822 wall_ms=66.434
+sample=8 resolution=1024x576 integrator=geokerr gpu_ms=71.722 wall_ms=71.735
+sample=9 resolution=1024x576 integrator=geokerr gpu_ms=65.990 wall_ms=66.617
+sample=10 resolution=1024x576 integrator=geokerr gpu_ms=66.407 wall_ms=66.425
+mean_gpu_ms=67.003 min_gpu_ms=65.822 max_gpu_ms=71.722 gpu_fps=14.925 mean_wall_ms=67.325 wall_fps=14.853 target_3fps=met

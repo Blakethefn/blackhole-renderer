@@ -1,0 +1,16 @@
+GPU: NVIDIA GeForce RTX 3080; GL renderer: NVIDIA GeForce RTX 3080/PCIe/SSE2; SDL video: x11
+Scene: workbench_preset; resolution=512x288 integrator=rk45 warmup=2 frames=10 ui_hz=60 hidden_window=1280x720 swap_interval=0
+spin=0.900 camera=(r=30.0 incl=85.0 azimuth=0.0 fov=35.0) disk=(inner=2.321 outer=20.0 temperature=40000.0 brightness=1.0) doppler=on redshift=on beaming=on starfield=off
+sample=1 resolution=512x288 integrator=rk45 gpu_ms=1.234 preview_ms=50.163
+sample=2 resolution=512x288 integrator=rk45 gpu_ms=1.212 preview_ms=50.166
+sample=3 resolution=512x288 integrator=rk45 gpu_ms=1.215 preview_ms=50.171
+sample=4 resolution=512x288 integrator=rk45 gpu_ms=1.243 preview_ms=50.165
+sample=5 resolution=512x288 integrator=rk45 gpu_ms=1.240 preview_ms=50.165
+sample=6 resolution=512x288 integrator=rk45 gpu_ms=1.246 preview_ms=50.168
+sample=7 resolution=512x288 integrator=rk45 gpu_ms=1.256 preview_ms=50.165
+sample=8 resolution=512x288 integrator=rk45 gpu_ms=1.247 preview_ms=50.168
+sample=9 resolution=512x288 integrator=rk45 gpu_ms=1.239 preview_ms=50.169
+sample=10 resolution=512x288 integrator=rk45 gpu_ms=1.239 preview_ms=50.165
+mean_gpu_ms=1.237 min_gpu_ms=1.212 max_gpu_ms=1.256 mean_preview_ms=50.166 min_preview_ms=50.163 max_preview_ms=50.171 preview_throughput_fps=19.933 measured_elapsed_ms=501.675 target_mean_3fps=met all_frames_within_333ms=yes
+ui_frames=31 mean_ui_interval_ms=16.723 max_ui_interval_ms=16.726 mean_ui_work_ms=0.088 max_ui_work_ms=0.388 heartbeat_events=31 mean_event_latency_ms=8.000 max_event_latency_ms=16.000
+Preview timing ends after the GL upload fence; warmup excludes allocation. UI work includes ImGui drawing and swap; UI intervals include pacing. Hidden-window results exclude monitor scanout.

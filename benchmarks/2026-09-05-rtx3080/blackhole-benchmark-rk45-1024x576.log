@@ -1,0 +1,14 @@
+GPU: NVIDIA GeForce RTX 3080; CUDA runtime=12000 driver=13020; device=0
+Scene: workbench_preset; resolution=1024x576 integrator=rk45 warmup=2 frames=10
+spin=0.900 camera=(r=30.0 incl=85.0 azimuth=0.0 fov=35.0) disk=(inner=2.321 outer=20.0 temperature=40000.0 brightness=1.0) doppler=on redshift=on beaming=on starfield=off
+sample=1 resolution=1024x576 integrator=rk45 gpu_ms=4.776 wall_ms=4.783
+sample=2 resolution=1024x576 integrator=rk45 gpu_ms=4.116 wall_ms=4.496
+sample=3 resolution=1024x576 integrator=rk45 gpu_ms=4.890 wall_ms=5.241
+sample=4 resolution=1024x576 integrator=rk45 gpu_ms=4.522 wall_ms=4.528
+sample=5 resolution=1024x576 integrator=rk45 gpu_ms=4.541 wall_ms=5.251
+sample=6 resolution=1024x576 integrator=rk45 gpu_ms=4.118 wall_ms=4.821
+sample=7 resolution=1024x576 integrator=rk45 gpu_ms=4.897 wall_ms=5.246
+sample=8 resolution=1024x576 integrator=rk45 gpu_ms=4.516 wall_ms=4.524
+sample=9 resolution=1024x576 integrator=rk45 gpu_ms=4.118 wall_ms=4.835
+sample=10 resolution=1024x576 integrator=rk45 gpu_ms=4.570 wall_ms=5.149
+mean_gpu_ms=4.506 min_gpu_ms=4.116 max_gpu_ms=4.897 gpu_fps=221.912 mean_wall_ms=4.887 wall_fps=204.609 target_3fps=met
