@@ -8,6 +8,8 @@
 #include "bhr/redshift.hpp"
 #include <cuda_runtime.h>
 #include <cstdio>
+#include <exception>
+#include <utility>
 
 namespace bhr {
 
@@ -17,7 +19,8 @@ __global__ void render_kernel(
     uchar4* fb, int width, int height,
     CameraParams cam, DiskParams disk, float a,
     cudaTextureObject_t starfield_tex, int starfield_valid,
-    IntegratorKind integrator_kind)
+    IntegratorKind integrator_kind, bool enable_doppler,
+    bool enable_redshift, bool enable_beaming)
 {
     const int px = blockIdx.x * blockDim.x + threadIdx.x;
     const int py = blockIdx.y * blockDim.y + threadIdx.y;
@@ -28,6 +31,7 @@ __global__ void render_kernel(
     camera_ray(px, py, width, height, cam, a, s, c);
 
     IntegratorConfig cfg{};
+    cfg.r_max = kMaxSceneRadius;
     cfg.disk_r_inner = disk.r_inner;
     cfg.disk_r_outer = disk.r_outer;
     cfg.max_steps = 50000;
@@ -52,15 +56,14 @@ __global__ void render_kernel(
             break;  // Stay black
         case HitType::kDisk: {
             const float T_emit = disk_temperature(hit.r, disk.r_inner, disk.peak_temp_K);
-            // g combines gravitational + Doppler
-            const float g = redshift_disk_to_infinity(hit.r, a, c);
+            const float g = disk_frequency_shift(hit.r, a, c, enable_doppler, enable_redshift);
             const float T_obs = g * T_emit;
             float rr, gg, bb;
             blackbody_rgb(T_obs, rr, gg, bb);
             // Beaming: bolometric intensity scales as g^4.
             // Combine with log(T)-based emissivity (intrinsic brightness proxy).
             const float g2 = g * g;
-            const float beaming = g2 * g2;
+            const float beaming = enable_beaming ? g2 * g2 : 1.0f;
             const float emissivity = logf(fmaxf(T_emit, 1.0f)) / logf(40000.0f);
             const float exposure = 1.5f * disk.brightness * emissivity * beaming;
             rr = rr * exposure / (1.0f + rr * exposure);
@@ -105,43 +108,64 @@ __global__ void render_kernel(
 
 } // namespace
 
-void render(const RenderParams& params, const Starfield& sf, Image& img) {
+cudaError_t render_device(const RenderParams& params, const Starfield& sf,
+                          uchar4* device_pixels, size_t capacity_bytes,
+                          cudaStream_t stream) {
+    if (!params.validate() || device_pixels == nullptr
+        || reinterpret_cast<std::uintptr_t>(device_pixels) % alignof(uchar4) != 0)
+        return cudaErrorInvalidValue;
     const int W = params.camera.width;
     const int H = params.camera.height;
-    img.allocate(W, H);
-
-    uchar4* d_fb = nullptr;
     const size_t bytes = static_cast<size_t>(W) * H * sizeof(uchar4);
-    cudaError_t err = cudaMalloc(&d_fb, bytes);
-    if (err != cudaSuccess) {
-        std::fprintf(stderr, "cudaMalloc failed: %s\n", cudaGetErrorString(err));
+    if (capacity_bytes < bytes) return cudaErrorInvalidValue;
+
+    const dim3 block(16, 16);
+    const dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
+    render_kernel<<<grid, block, 0, stream>>>(device_pixels, W, H, params.camera,
+        params.disk, params.spin, sf.tex, params.enable_starfield && sf.is_valid(),
+        params.integrator, params.enable_doppler, params.enable_redshift, params.enable_beaming);
+    return cudaGetLastError();
+}
+
+void render(const RenderParams& params, const Starfield& sf, Image& img) {
+    img = Image{};
+    if (const char* reason = validation_error(params)) {
+        std::fprintf(stderr, "Render parameters invalid: %s\n", reason);
+        return;
+    }
+    // Build the host result separately so no partial or stale image is exposed.
+    Image result;
+    try {
+        result.allocate(params.camera.width, params.camera.height);
+    } catch (const std::exception& error) {
+        std::fprintf(stderr, "Host image allocation failed: %s\n", error.what());
         return;
     }
 
-    dim3 block(16, 16);
-    dim3 grid((W + block.x - 1) / block.x, (H + block.y - 1) / block.y);
-
-    render_kernel<<<grid, block>>>(d_fb, W, H, params.camera, params.disk, params.spin,
-                                   sf.tex, sf.is_valid() ? 1 : 0, params.integrator);
-
-    err = cudaGetLastError();
+    uchar4* device_pixels = nullptr;
+    const size_t bytes = result.rgba.size();
+    cudaError_t err = cudaMalloc(&device_pixels, bytes);
     if (err != cudaSuccess) {
-        std::fprintf(stderr, "render_kernel launch failed: %s\n", cudaGetErrorString(err));
-        cudaFree(d_fb);
+        std::fprintf(stderr, "Render cudaMalloc failed: %s\n", cudaGetErrorString(err));
         return;
     }
-
-    err = cudaDeviceSynchronize();
-    if (err != cudaSuccess) {
-        std::fprintf(stderr, "render_kernel execution failed: %s\n", cudaGetErrorString(err));
+    err = render_device(params, sf, device_pixels, bytes);
+    if (err != cudaSuccess)
+        std::fprintf(stderr, "Render launch failed: %s\n", cudaGetErrorString(err));
+    if (err == cudaSuccess) {
+        err = cudaStreamSynchronize(nullptr);
+        if (err != cudaSuccess)
+            std::fprintf(stderr, "Render execution failed: %s\n", cudaGetErrorString(err));
     }
-
-    err = cudaMemcpy(img.rgba.data(), d_fb, bytes, cudaMemcpyDeviceToHost);
-    if (err != cudaSuccess) {
-        std::fprintf(stderr, "cudaMemcpy DtoH failed: %s\n", cudaGetErrorString(err));
+    if (err == cudaSuccess) {
+        err = cudaMemcpy(result.rgba.data(), device_pixels, bytes, cudaMemcpyDeviceToHost);
+        if (err != cudaSuccess)
+            std::fprintf(stderr, "Render copy to host failed: %s\n", cudaGetErrorString(err));
     }
-
-    cudaFree(d_fb);
+    const cudaError_t free_error = cudaFree(device_pixels);
+    if (free_error != cudaSuccess)
+        std::fprintf(stderr, "Render cudaFree failed: %s\n", cudaGetErrorString(free_error));
+    if (err == cudaSuccess && free_error == cudaSuccess) img = std::move(result);
 }
 
 } // namespace bhr

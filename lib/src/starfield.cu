@@ -3,330 +3,167 @@
 #define TINYEXR_IMPLEMENTATION
 #include "tinyexr.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <cstdint>
+#include <stdexcept>
 #include <vector>
-#include <cmath>
 
 namespace bhr {
-
 namespace {
+constexpr int kMaxUploadWidth = 16384;
+constexpr std::int64_t kMaxSourcePixels = 128LL * 1024 * 1024;
 
-/// Convert an IEEE 754 half-float (16-bit) to float32.
-inline float half_to_float(unsigned short h) {
-    const unsigned int sign     = (h >> 15) & 0x1u;
-    const unsigned int exponent = (h >> 10) & 0x1fu;
-    const unsigned int mantissa = h & 0x3ffu;
+struct ExrData {
+    EXRHeader header{};
+    EXRImage image{};
+    ExrData() { InitEXRHeader(&header); InitEXRImage(&image); }
+    ~ExrData() { FreeEXRImage(&image); FreeEXRHeader(&header); }
+    ExrData(const ExrData&) = delete;
+    ExrData& operator=(const ExrData&) = delete;
+};
 
-    unsigned int f;
-    if (exponent == 0) {
-        if (mantissa == 0) {
-            f = sign << 31;
-        } else {
-            // Denormal
-            int e = -1;
-            unsigned int m = mantissa;
-            do { ++e; m <<= 1; } while (!(m & 0x400u));
-            f = (sign << 31) | (static_cast<unsigned int>(127 - 14 - e) << 23) |
-                ((m & 0x3ffu) << 13);
-        }
-    } else if (exponent == 31) {
-        // Inf / NaN
-        f = (sign << 31) | 0x7f800000u | (mantissa << 13);
-    } else {
-        f = (sign << 31) | ((exponent + 112u) << 23) | (mantissa << 13);
-    }
-    float result;
-    std::memcpy(&result, &f, sizeof(result));
-    return result;
+void check_exr(int status, const char* error, const char* operation) {
+    const std::string message = error ? error : operation;
+    if (error) FreeEXRErrorMessage(error);
+    if (status != TINYEXR_SUCCESS) throw std::runtime_error(message);
 }
 
-/// Box-downsample a planar float image (separate R,G,B arrays) to RGBA interleaved float,
-/// applying integer downscale factor. src_* arrays have src_w * src_h elements each.
-/// Result is dst_w * dst_h * 4 floats (RGBA, A=1).
-std::vector<float> downsample_planar_to_rgba(
-    const float* src_r, const float* src_g, const float* src_b,
-    int src_w, int src_h, int factor,
-    int& dst_w, int& dst_h)
-{
-    dst_w = src_w / factor;
-    dst_h = src_h / factor;
-    std::vector<float> dst(static_cast<size_t>(dst_w) * dst_h * 4, 0.0f);
-    const float inv = 1.0f / static_cast<float>(factor * factor);
-
-    for (int y = 0; y < dst_h; ++y) {
-        for (int x = 0; x < dst_w; ++x) {
-            float r = 0.0f, g = 0.0f, b = 0.0f;
-            for (int dy = 0; dy < factor; ++dy) {
-                for (int dx = 0; dx < factor; ++dx) {
-                    const size_t si =
-                        (static_cast<size_t>(y) * factor + dy) * src_w +
-                        (static_cast<size_t>(x) * factor + dx);
-                    r += src_r[si];
-                    g += src_g[si];
-                    b += src_b[si];
+std::vector<float4> decode(const std::string& path, int max_width, int& width, int& height) {
+    EXRVersion version{};
+    if (ParseEXRVersionFromFile(&version, path.c_str()) != TINYEXR_SUCCESS)
+        throw std::runtime_error("Cannot read EXR version");
+    if (version.tiled || version.multipart || version.non_image)
+        throw std::runtime_error("Starfields require a single-part scanline RGB EXR (no tiled/deep images)");
+    ExrData data;
+    const char* error = nullptr;
+    const int header_status = ParseEXRHeaderFromFile(&data.header, &version, path.c_str(), &error);
+    check_exr(header_status, error, "Cannot read EXR header");
+    const auto& header = data.header;
+    const std::int64_t source_width = std::int64_t(header.data_window.max_x) - header.data_window.min_x + 1;
+    const std::int64_t source_height = std::int64_t(header.data_window.max_y) - header.data_window.min_y + 1;
+    if (source_width <= 0 || source_height <= 0 || source_width > kMaxSourcePixels / source_height)
+        throw std::runtime_error("EXR dimensions must be positive and contain at most 128 million pixels");
+    int red = -1, green = -1, blue = -1;
+    for (int channel = 0; channel < header.num_channels; ++channel) {
+        const auto& info = header.channels[channel];
+        if (header.pixel_types[channel] != TINYEXR_PIXELTYPE_HALF
+            && header.pixel_types[channel] != TINYEXR_PIXELTYPE_FLOAT)
+            throw std::runtime_error("EXR channels must contain HALF or FLOAT radiance");
+        if (info.x_sampling != 1 || info.y_sampling != 1)
+            throw std::runtime_error("Subsampled EXR channels are unsupported");
+        if (std::strcmp(info.name, "R") == 0) red = channel;
+        if (std::strcmp(info.name, "G") == 0) green = channel;
+        if (std::strcmp(info.name, "B") == 0) blue = channel;
+        data.header.requested_pixel_types[channel] = TINYEXR_PIXELTYPE_FLOAT;
+    }
+    if (red < 0 || green < 0 || blue < 0)
+        throw std::runtime_error("EXR requires named R, G and B channels");
+    error = nullptr;
+    const int image_status = LoadEXRImageFromFile(&data.image, &data.header, path.c_str(), &error);
+    check_exr(image_status, error, "Cannot decode EXR image");
+    const auto& image = data.image;
+    if (!image.images || image.width != source_width || image.height != source_height)
+        throw std::runtime_error("EXR decoded dimensions or channel storage are invalid");
+    const auto* r = reinterpret_cast<const float*>(image.images[red]);
+    const auto* g = reinterpret_cast<const float*>(image.images[green]);
+    const auto* b = reinterpret_cast<const float*>(image.images[blue]);
+    if (!r || !g || !b) throw std::runtime_error("EXR RGB storage is missing");
+    const auto source_pixels = static_cast<size_t>(source_width * source_height);
+    for (size_t pixel = 0; pixel < source_pixels; ++pixel) {
+        if (!std::isfinite(r[pixel]) || !std::isfinite(g[pixel]) || !std::isfinite(b[pixel])
+            || r[pixel] < 0.0f || g[pixel] < 0.0f || b[pixel] < 0.0f)
+            throw std::runtime_error("EXR radiance must be finite and nonnegative");
+    }
+    const int factor = std::max(1, (image.width + max_width - 1) / max_width);
+    width = (image.width + factor - 1) / factor;
+    height = (image.height + factor - 1) / factor;
+    std::vector<float4> output(static_cast<size_t>(width) * height);
+    // Partial edge boxes preserve odd dimensions and one-pixel-high maps.
+    // Accumulate in double so finite HDR float values cannot overflow the sum.
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            const int x_end = std::min((x + 1) * factor, image.width);
+            const int y_end = std::min((y + 1) * factor, image.height);
+            double rr = 0.0, gg = 0.0, bb = 0.0;
+            for (int sy = y * factor; sy < y_end; ++sy) {
+                for (int sx = x * factor; sx < x_end; ++sx) {
+                    const auto index = static_cast<size_t>(sy) * image.width + sx;
+                    rr += r[index]; gg += g[index]; bb += b[index];
                 }
             }
-            const size_t di = (static_cast<size_t>(y) * dst_w + x) * 4;
-            dst[di + 0] = r * inv;
-            dst[di + 1] = g * inv;
-            dst[di + 2] = b * inv;
-            dst[di + 3] = 1.0f;
+            const double count = static_cast<double>(x_end - x * factor) * (y_end - y * factor);
+            output[static_cast<size_t>(y) * width + x] = make_float4(
+                static_cast<float>(rr / count), static_cast<float>(gg / count),
+                static_cast<float>(bb / count), 1.0f);
         }
     }
-    return dst;
+    return output;
 }
 
-/// Box-downsample an RGBA interleaved float image by integer factor.
-std::vector<float> downsample_rgba(
-    const float* src, int src_w, int src_h, int factor,
-    int& dst_w, int& dst_h)
-{
-    dst_w = src_w / factor;
-    dst_h = src_h / factor;
-    std::vector<float> dst(static_cast<size_t>(dst_w) * dst_h * 4, 0.0f);
-    const float inv = 1.0f / static_cast<float>(factor * factor);
-
-    for (int y = 0; y < dst_h; ++y) {
-        for (int x = 0; x < dst_w; ++x) {
-            float r = 0.0f, g = 0.0f, b = 0.0f, a = 0.0f;
-            for (int dy = 0; dy < factor; ++dy) {
-                for (int dx = 0; dx < factor; ++dx) {
-                    const size_t si =
-                        ((static_cast<size_t>(y) * factor + dy) * src_w +
-                         (static_cast<size_t>(x) * factor + dx)) * 4;
-                    r += src[si + 0];
-                    g += src[si + 1];
-                    b += src[si + 2];
-                    a += src[si + 3];
-                }
-            }
-            const size_t di = (static_cast<size_t>(y) * dst_w + x) * 4;
-            dst[di + 0] = r * inv;
-            dst[di + 1] = g * inv;
-            dst[di + 2] = b * inv;
-            dst[di + 3] = a * inv;
-        }
-    }
-    return dst;
+bool checked_cuda(cudaError_t status, const char* operation) {
+    if (status == cudaSuccess) return true;
+    std::fprintf(stderr, "Starfield %s failed: %s\n", operation, cudaGetErrorString(status));
+    return false;
 }
-
-/// Load EXR using low-level API, keeping channels as float32.
-/// On success, fills out_rgba (RGBA interleaved float), out_w, out_h and returns true.
-bool load_exr_low_level(const char* path, int max_width,
-                        std::vector<float>& out_rgba, int& out_w, int& out_h)
-{
-    EXRVersion version;
-    int ret = ParseEXRVersionFromFile(&version, path);
-    if (ret != TINYEXR_SUCCESS) {
-        std::fprintf(stderr, "Starfield: ParseEXRVersionFromFile failed (%d)\n", ret);
-        return false;
-    }
-
-    EXRHeader header;
-    InitEXRHeader(&header);
-    const char* err = nullptr;
-    ret = ParseEXRHeaderFromFile(&header, &version, path, &err);
-    if (ret != TINYEXR_SUCCESS) {
-        std::fprintf(stderr, "Starfield: ParseEXRHeaderFromFile failed: %s\n",
-                     err ? err : "(null)");
-        if (err) FreeEXRErrorMessage(err);
-        return false;
-    }
-
-    // Request float32 output for all channels to simplify downstream processing.
-    for (int c = 0; c < header.num_channels; ++c) {
-        header.requested_pixel_types[c] = TINYEXR_PIXELTYPE_FLOAT;
-    }
-
-    EXRImage image;
-    InitEXRImage(&image);
-    ret = LoadEXRImageFromFile(&image, &header, path, &err);
-    if (ret != TINYEXR_SUCCESS) {
-        std::fprintf(stderr, "Starfield: LoadEXRImageFromFile failed: %s\n",
-                     err ? err : "(null)");
-        if (err) FreeEXRErrorMessage(err);
-        FreeEXRHeader(&header);
-        return false;
-    }
-
-    std::fprintf(stderr, "Starfield: loaded %dx%d, %d channels\n",
-                 image.width, image.height, image.num_channels);
-
-    // Find R, G, B channel indices (channels may be in any order).
-    int idx_r = -1, idx_g = -1, idx_b = -1;
-    for (int c = 0; c < header.num_channels; ++c) {
-        const char* name = header.channels[c].name;
-        if (name[0] == 'R' && name[1] == '\0') idx_r = c;
-        else if (name[0] == 'G' && name[1] == '\0') idx_g = c;
-        else if (name[0] == 'B' && name[1] == '\0') idx_b = c;
-    }
-    // Fallback to 0,1,2 if named channels not found (e.g. unnamed single-part)
-    if (idx_r < 0 && image.num_channels >= 3) { idx_r = 0; idx_g = 1; idx_b = 2; }
-    if (idx_r < 0) {
-        std::fprintf(stderr, "Starfield: could not identify RGB channels\n");
-        FreeEXRImage(&image);
-        FreeEXRHeader(&header);
-        return false;
-    }
-
-    const int src_w = image.width;
-    const int src_h = image.height;
-    const float* ch_r = reinterpret_cast<const float*>(image.images[idx_r]);
-    const float* ch_g = reinterpret_cast<const float*>(image.images[idx_g]);
-    const float* ch_b = reinterpret_cast<const float*>(image.images[idx_b]);
-
-    // Compute downscale factor: smallest power of 2 that gets us to max_width
-    int factor = 1;
-    while ((src_w / factor) > max_width) factor *= 2;
-
-    int dw = 0, dh = 0;
-    std::vector<float> rgba = downsample_planar_to_rgba(
-        ch_r, ch_g, ch_b, src_w, src_h, factor, dw, dh);
-
-    std::fprintf(stderr, "Starfield: downsampled %dx%d -> %dx%d (factor %d)\n",
-                 src_w, src_h, dw, dh, factor);
-
-    FreeEXRImage(&image);
-    FreeEXRHeader(&header);
-
-    out_rgba = std::move(rgba);
-    out_w = dw;
-    out_h = dh;
-    return true;
-}
-
-/// Simple LoadEXR fallback (returns RGBA float, handles further downsampling).
-bool load_exr_simple(const char* path, int max_width,
-                     std::vector<float>& out_rgba, int& out_w, int& out_h)
-{
-    float* rgba = nullptr;
-    int w = 0, h = 0;
-    const char* err = nullptr;
-
-    const int ret = LoadEXR(&rgba, &w, &h, path, &err);
-    if (ret != TINYEXR_SUCCESS) {
-        std::fprintf(stderr, "Starfield: LoadEXR failed: %s\n", err ? err : "(null)");
-        if (err) FreeEXRErrorMessage(err);
-        return false;
-    }
-
-    std::fprintf(stderr, "Starfield: LoadEXR loaded %dx%d\n", w, h);
-
-    // Downsample by factors of 2 until width <= max_width
-    const float* working = rgba;
-    int cur_w = w, cur_h = h;
-    std::vector<float> prev, curr;
-
-    while (cur_w > max_width) {
-        int new_w = 0, new_h = 0;
-        curr = downsample_rgba(working, cur_w, cur_h, 2, new_w, new_h);
-        if (working == rgba) {
-            free(rgba);
-            rgba = nullptr;
-        }
-        prev = std::move(curr);
-        working = prev.data();
-        cur_w = new_w;
-        cur_h = new_h;
-        std::fprintf(stderr, "Starfield: downsampled to %dx%d\n", cur_w, cur_h);
-    }
-
-    if (rgba) {
-        out_rgba.assign(rgba, rgba + static_cast<size_t>(cur_w) * cur_h * 4);
-        free(rgba);
-    } else {
-        out_rgba = std::move(prev);
-    }
-    out_w = cur_w;
-    out_h = cur_h;
-    return true;
-}
-
 } // namespace
 
 bool load_starfield(const std::string& path, int max_width, Starfield& out) {
-    out = Starfield{};
-    if (path.empty()) return false;
-
-    std::fprintf(stderr, "Starfield: loading %s (max_width=%d)...\n",
-                 path.c_str(), max_width);
-
-    std::vector<float> rgba;
-    int cur_w = 0, cur_h = 0;
-
-    // Use the low-level API first: it avoids allocating a full float32 RGBA buffer
-    // for the entire source image by allowing us to downsample from planar channels.
-    // Fall back to simple LoadEXR if the low-level path fails.
-    if (!load_exr_low_level(path.c_str(), max_width, rgba, cur_w, cur_h)) {
-        std::fprintf(stderr, "Starfield: low-level load failed, trying simple path...\n");
-        if (!load_exr_simple(path.c_str(), max_width, rgba, cur_w, cur_h)) {
+    if (out.tex || out.d_array) {
+        std::fprintf(stderr, "Starfield output already owns GPU resources; release it before loading\n");
+        return false;
+    }
+    if (path.empty() || max_width <= 0 || max_width > kMaxUploadWidth) {
+        std::fprintf(stderr, "Starfield needs a path and upload width between 1 and 16384\n");
+        return false;
+    }
+    try {
+        int width = 0, height = 0;
+        const auto pixels = decode(path, max_width, width, height);
+        const auto desc = cudaCreateChannelDesc<float4>();
+        if (!checked_cuda(cudaMallocArray(&out.d_array, &desc, width, height), "allocate array")) return false;
+        const size_t pitch = static_cast<size_t>(width) * sizeof(float4);
+        if (!checked_cuda(cudaMemcpy2DToArray(out.d_array, 0, 0, pixels.data(), pitch,
+                pitch, height, cudaMemcpyHostToDevice), "upload pixels")) {
+            destroy_starfield(out);
             return false;
         }
-    }
-
-    // Upload to CUDA array as float4
-    cudaChannelFormatDesc desc =
-        cudaCreateChannelDesc(32, 32, 32, 32, cudaChannelFormatKindFloat);
-    cudaError_t cerr = cudaMallocArray(&out.d_array, &desc, cur_w, cur_h);
-    if (cerr != cudaSuccess) {
-        std::fprintf(stderr, "Starfield: cudaMallocArray failed: %s\n",
-                     cudaGetErrorString(cerr));
+        cudaResourceDesc resource{};
+        resource.resType = cudaResourceTypeArray;
+        resource.res.array.array = out.d_array;
+        cudaTextureDesc texture{};
+        texture.addressMode[0] = cudaAddressModeWrap;
+        texture.addressMode[1] = cudaAddressModeClamp;
+        texture.filterMode = cudaFilterModeLinear;
+        texture.readMode = cudaReadModeElementType;
+        texture.normalizedCoords = 1;
+        if (!checked_cuda(cudaCreateTextureObject(&out.tex, &resource, &texture, nullptr), "create texture")) {
+            destroy_starfield(out);
+            return false;
+        }
+        out.width = width;
+        out.height = height;
+        return true;
+    } catch (const std::exception& error) {
+        std::fprintf(stderr, "Starfield load failed: %s\n", error.what());
         return false;
     }
+}
 
-    cerr = cudaMemcpy2DToArray(
-        out.d_array, 0, 0,
-        rgba.data(),
-        static_cast<size_t>(cur_w) * 4 * sizeof(float),
-        static_cast<size_t>(cur_w) * 4 * sizeof(float),
-        cur_h,
-        cudaMemcpyHostToDevice);
-    if (cerr != cudaSuccess) {
-        std::fprintf(stderr, "Starfield: cudaMemcpy2DToArray failed: %s\n",
-                     cudaGetErrorString(cerr));
-        cudaFreeArray(out.d_array);
-        out.d_array = nullptr;
-        return false;
+bool destroy_starfield(Starfield& sf) {
+    // On failure retain ownership for a retry; never free an array still used by
+    // a texture whose destruction failed. Call only after submitted work settles.
+    if (sf.tex) {
+        if (!checked_cuda(cudaDestroyTextureObject(sf.tex), "destroy texture")) return false;
+        sf.tex = 0;
     }
-
-    // Free host buffer before creating texture (GPU copy already done)
-    rgba.clear();
-    rgba.shrink_to_fit();
-
-    cudaResourceDesc res{};
-    res.resType = cudaResourceTypeArray;
-    res.res.array.array = out.d_array;
-
-    cudaTextureDesc td{};
-    td.addressMode[0] = cudaAddressModeWrap;   // wrap in longitude
-    td.addressMode[1] = cudaAddressModeClamp;  // clamp at poles
-    td.filterMode     = cudaFilterModeLinear;
-    td.readMode       = cudaReadModeElementType;
-    td.normalizedCoords = 1;
-
-    cerr = cudaCreateTextureObject(&out.tex, &res, &td, nullptr);
-    if (cerr != cudaSuccess) {
-        std::fprintf(stderr, "Starfield: cudaCreateTextureObject failed: %s\n",
-                     cudaGetErrorString(cerr));
-        cudaFreeArray(out.d_array);
-        out = Starfield{};
-        return false;
+    if (sf.d_array) {
+        if (!checked_cuda(cudaFreeArray(sf.d_array), "free array")) return false;
+        sf.d_array = nullptr;
     }
-
-    out.width  = cur_w;
-    out.height = cur_h;
-    std::fprintf(stderr,
-        "Starfield: %dx%d on GPU (~%zu MB VRAM)\n",
-        out.width, out.height,
-        static_cast<size_t>(out.width) * out.height * 16 / (1024 * 1024));
+    sf = Starfield{};
     return true;
 }
-
-void destroy_starfield(Starfield& sf) {
-    if (sf.tex)     cudaDestroyTextureObject(sf.tex);
-    if (sf.d_array) cudaFreeArray(sf.d_array);
-    sf = Starfield{};
-}
-
 } // namespace bhr

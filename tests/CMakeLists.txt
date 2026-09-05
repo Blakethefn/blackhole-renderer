@@ -4,6 +4,9 @@ add_executable(bhr_tests
     unit/test_hello.cpp
     unit/test_interop.cpp
     unit/test_params.cpp
+    unit/test_params_validate.cpp
+    unit/test_presets.cpp
+    unit/test_starfield.cpp
     unit/test_image.cpp
     unit/test_kerr.cpp
     unit/test_geodesic.cpp
@@ -17,6 +20,7 @@ add_executable(bhr_tests
     integration/test_golden_schwarzschild.cpp
     integration/test_dual_integrator_rays.cpp
     integration/test_dual_integrator_psnr.cpp
+    integration/test_workbench_render_parity.cpp
 )
 
 target_link_libraries(bhr_tests

@@ -16,11 +16,16 @@ struct Starfield {
     bool is_valid() const { return tex != 0; }
 };
 
-/// Load an equirectangular HDR EXR from @p path, downsample if needed to stay under
-/// @p max_width pixels, and upload to GPU as a cudaTextureObject for bilinear sampling.
-/// If @p path is empty or load fails, returns an empty (invalid) Starfield.
+/// Load a single-part scanline EXR with named R/G/B HALF or FLOAT channels.
+/// Radiance must be finite/nonnegative; tiled, deep, multipart, integer and
+/// subsampled channels are rejected. Source limit: 128 Mi pixels; max_width 1..16384.
+/// Downsample with partial edge boxes and upload for bilinear sampling.
+/// Requires an empty out; existing ownership is never overwritten. On a GPU
+/// cleanup failure out retains partial ownership: call destroy_starfield to retry.
 bool load_starfield(const std::string& path, int max_width, Starfield& out);
 
-void destroy_starfield(Starfield& sf);
+/// Call after GPU work completes. Returns false on CUDA failure, logs a reason,
+/// and retains unreleased handles for retry. Empty destruction succeeds.
+bool destroy_starfield(Starfield& sf);
 
 } // namespace bhr

@@ -28,4 +28,21 @@ BHR_HD inline float redshift_disk_to_infinity(float r_emit, float a, const Conse
     return c.E / denom;
 }
 
+/// Workbench visualization switches for the existing total frequency factor.
+/// Approximate split: time dilation 1/u^t (gravity AND transverse orbital motion),
+/// directional Doppler 1/(1 - Omega*Lz/E). These are diagnostic contributions,
+/// not a unique general-relativistic separation of gravity and emitter motion.
+/// Both enabled calls the original formula directly to preserve legacy output.
+BHR_HD inline float disk_frequency_shift(float r_emit, float a, const Conserved& c,
+                                         bool doppler, bool redshift) {
+    if (doppler && redshift) return redshift_disk_to_infinity(r_emit, a, c);
+    if (!doppler && !redshift) return 1.0f;
+    float u_t, u_phi;
+    disk_4velocity(r_emit, a, u_t, u_phi);
+    if (u_t <= 0.0f) return 1.0f;
+    if (!doppler) return 1.0f / u_t;
+    const float denom = c.E - c.Lz * (u_phi / u_t);
+    return fabsf(denom) < 1e-12f ? 1.0f : c.E / denom;
+}
+
 } // namespace bhr
