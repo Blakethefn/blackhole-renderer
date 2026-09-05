@@ -49,5 +49,8 @@ presets/user/
 .superpowers/
 docs/
 
+# Local planning context and implementation brief for Astra
+/.astra/
+
 # OS
 Thumbs.db
