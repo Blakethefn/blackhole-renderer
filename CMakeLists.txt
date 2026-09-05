@@ -33,8 +33,10 @@ option(BHR_BUILD_APP "Build the GUI workbench" ON)
 
 # --- External dependencies ---------------------------------------------------
 find_package(CUDAToolkit REQUIRED)
-find_package(SDL2 CONFIG REQUIRED)
-find_package(OpenGL REQUIRED)
+if(BHR_BUILD_APP)
+    find_package(SDL2 CONFIG REQUIRED)
+    find_package(OpenGL REQUIRED)
+endif()
 
 # Header-only or vendored externals — add them as INTERFACE targets
 add_library(bhr_stb INTERFACE)
@@ -55,6 +57,8 @@ target_include_directories(bhr_json INTERFACE ${CMAKE_SOURCE_DIR}/external/nlohm
 add_library(bhr_doctest INTERFACE)
 target_include_directories(bhr_doctest INTERFACE ${CMAKE_SOURCE_DIR}/external/doctest/doctest)
 
+# GUI dependencies are unnecessary for headless rendering and core tests.
+if(BHR_BUILD_APP)
 # glad (vendored, compiled)
 add_library(bhr_glad STATIC ${CMAKE_SOURCE_DIR}/external/glad/src/glad.c)
 target_include_directories(bhr_glad PUBLIC ${CMAKE_SOURCE_DIR}/external/glad/include)
@@ -72,13 +76,12 @@ add_library(bhr_imgui STATIC
 )
 target_include_directories(bhr_imgui PUBLIC ${IMGUI_DIR} ${IMGUI_DIR}/backends)
 target_link_libraries(bhr_imgui PUBLIC SDL2::SDL2 OpenGL::GL)
+endif()
 
 # --- Subdirectories ----------------------------------------------------------
 add_subdirectory(lib)
 
-if(BHR_BUILD_APP)
-    add_subdirectory(app)
-endif()
+add_subdirectory(app)
 
 if(BHR_BUILD_TESTS)
     enable_testing()

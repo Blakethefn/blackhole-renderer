@@ -1,221 +1,169 @@
-// SDL2 + OpenGL 3.3 + Dear ImGui + CUDA-GL interop.
-// Allocates an RGBA8 GL texture, registers it with CUDA, and on each frame
-// runs a CUDA kernel that writes a pulsing gradient. ImGui displays the
-// texture in a viewport and exposes diagnostics from a toggleable overlay.
-
+// The UI presents the last completed texture while CUDA renders into a separate
+// persistent PBO. See workbench/viewport.hpp for ownership and completion rules.
 #include <glad/glad.h>
 #include <SDL.h>
-#include <SDL_opengl.h>
-
+#include <cuda_gl_interop.h>
 #include "imgui.h"
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_opengl3.h"
-
-#include "bhr/hello.hpp"
-
-#include <cuda_runtime.h>
-#include <cuda_gl_interop.h>
-
+#include "workbench/ui_panels.hpp"
 #include <cstdio>
-#include <cstdint>
+#include <exception>
 
 namespace {
+struct Application {
+    SDL_Window* window = nullptr;
+    SDL_GLContext context = nullptr;
+    bool imgui = false;
+    bool sdl_backend = false;
+    bool gl_backend = false;
 
-constexpr int kInitialWidth = 1280;
-constexpr int kInitialHeight = 720;
-constexpr int kTextureWidth = 512;
-constexpr int kTextureHeight = 288;
-constexpr const char* kGlslVersion = "#version 330 core";
-constexpr SDL_Keycode kControlsToggleKey = SDLK_F1;
+    ~Application() {
+        if (gl_backend) ImGui_ImplOpenGL3_Shutdown();
+        if (sdl_backend) ImGui_ImplSDL2_Shutdown();
+        if (imgui) ImGui::DestroyContext();
+        if (context) SDL_GL_DeleteContext(context);
+        if (window) SDL_DestroyWindow(window);
+        SDL_Quit();
+    }
 
-struct InteropTexture {
-    GLuint gl_tex = 0;
-    cudaGraphicsResource* cuda_res = nullptr;
-    int width = 0;
-    int height = 0;
+    bool initialize() {
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) return false;
+        if (SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE) != 0
+            || SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3) != 0
+            || SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3) != 0
+            || SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1) != 0) return false;
+        window = SDL_CreateWindow("Black Hole Workbench", SDL_WINDOWPOS_CENTERED,
+            SDL_WINDOWPOS_CENTERED, 1280, 720,
+            SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
+        if (!window) return false;
+        context = SDL_GL_CreateContext(window);
+        if (!context || SDL_GL_MakeCurrent(window, context) != 0) return false;
+        if (SDL_GL_SetSwapInterval(1) != 0)
+            std::fprintf(stderr, "Vsync unavailable: %s\n", SDL_GetError());
+        if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(SDL_GL_GetProcAddress))) {
+            std::fprintf(stderr, "Failed to load OpenGL 3.3 functions\n");
+            return false;
+        }
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        imgui = true;
+        // Do not read or overwrite the user's existing imgui.ini.
+        ImGui::GetIO().IniFilename = nullptr;
+        ImGui::StyleColorsDark();
+        sdl_backend = ImGui_ImplSDL2_InitForOpenGL(window, context);
+        gl_backend = ImGui_ImplOpenGL3_Init("#version 330 core");
+        return sdl_backend && gl_backend;
+    }
 };
 
-InteropTexture make_interop_texture(int w, int h) {
-    InteropTexture t{};
-    t.width = w;
-    t.height = h;
+struct StarfieldOwner {
+    bhr::Starfield value{};
+    ~StarfieldOwner() { bhr::destroy_starfield(value); }
+};
 
-    glGenTextures(1, &t.gl_tex);
-    glBindTexture(GL_TEXTURE_2D, t.gl_tex);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-    glBindTexture(GL_TEXTURE_2D, 0);
-
-    cudaError_t err = cudaGraphicsGLRegisterImage(&t.cuda_res, t.gl_tex, GL_TEXTURE_2D,
-                                                  cudaGraphicsRegisterFlagsWriteDiscard);
-    if (err != cudaSuccess) {
-        std::fprintf(stderr, "cudaGraphicsGLRegisterImage failed: %s\n",
-                     cudaGetErrorString(err));
-        glDeleteTextures(1, &t.gl_tex);
-        t = {};
+bhr::workbench::State shortcut(const bhr::workbench::State& state, SDL_Keycode key) {
+    using namespace bhr::workbench;
+    if (key == SDLK_F1) return controls_toggled(state);
+    if (ImGui::GetIO().WantCaptureKeyboard || ImGui::GetIO().WantTextInput) return state;
+    if (key == SDLK_r) return changed(state, bhr::workbench_preset());
+    auto params = state.params;
+    if (key == SDLK_SPACE) {
+        params.integrator = params.integrator == bhr::IntegratorKind::kRK45
+            ? bhr::IntegratorKind::kGeokerr : bhr::IntegratorKind::kRK45;
+        return changed(state, params);
     }
-    return t;
+    constexpr int widths[] = {256, 512, 1024, 1920};
+    constexpr int heights[] = {144, 288, 576, 1080};
+    if (key >= SDLK_1 && key <= SDLK_4) {
+        const int index = key - SDLK_1;
+        params.camera.width = widths[index];
+        params.camera.height = heights[index];
+        return changed(state, params);
+    }
+    return state;
 }
 
-void destroy_interop_texture(InteropTexture& t) {
-    if (t.cuda_res) cudaGraphicsUnregisterResource(t.cuda_res);
-    if (t.gl_tex) glDeleteTextures(1, &t.gl_tex);
-    t = {};
-}
-
-void run_gradient_once(InteropTexture& t, float seconds) {
-    if (!t.cuda_res) return;
-
-    cudaError_t err = cudaGraphicsMapResources(1, &t.cuda_res, 0);
-    if (err != cudaSuccess) {
-        std::fprintf(stderr, "cudaGraphicsMapResources failed: %s\n", cudaGetErrorString(err));
-        return;
-    }
-
-    cudaArray_t array = nullptr;
-    err = cudaGraphicsSubResourceGetMappedArray(&array, t.cuda_res, 0, 0);
-    if (err != cudaSuccess || array == nullptr) {
-        std::fprintf(stderr, "cudaGraphicsSubResourceGetMappedArray failed: %s\n",
-                     cudaGetErrorString(err));
-        cudaGraphicsUnmapResources(1, &t.cuda_res, 0);
-        return;
-    }
-
-    cudaResourceDesc res_desc{};
-    res_desc.resType = cudaResourceTypeArray;
-    res_desc.res.array.array = array;
-
-    cudaSurfaceObject_t surface = 0;
-    err = cudaCreateSurfaceObject(&surface, &res_desc);
-    if (err != cudaSuccess) {
-        std::fprintf(stderr, "cudaCreateSurfaceObject failed: %s\n", cudaGetErrorString(err));
-        cudaGraphicsUnmapResources(1, &t.cuda_res, 0);
-        return;
-    }
-
-    bhr::cuda_gradient(static_cast<unsigned long long>(surface),
-                       t.width, t.height, seconds);
-
-    // Detect kernel launch errors without forcing a full device sync every frame
-    err = cudaGetLastError();
-    if (err != cudaSuccess) {
-        std::fprintf(stderr, "gradient kernel launch failed: %s\n", cudaGetErrorString(err));
-    }
-
-    cudaDestroySurfaceObject(surface);
-    cudaGraphicsUnmapResources(1, &t.cuda_res, 0);
-}
-
-} // namespace
-
-int main(int, char**) {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) {
-        std::fprintf(stderr, "SDL_Init failed: %s\n", SDL_GetError());
+int run() {
+    Application application;
+    if (!application.initialize()) {
+        std::fprintf(stderr, "Workbench initialization failed: %s\n", SDL_GetError());
         return 1;
     }
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-
-    auto* window = SDL_CreateWindow(
-        "blackhole-workbench",
-        SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-        kInitialWidth, kInitialHeight,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
-    if (!window) {
-        std::fprintf(stderr, "SDL_CreateWindow failed: %s\n", SDL_GetError());
-        SDL_Quit();
+    unsigned int device_count = 0;
+    int device = 0;
+    auto err = cudaGLGetDevices(&device_count, &device, 1, cudaGLDeviceListCurrentFrame);
+    if (err != cudaSuccess || device_count == 0) {
+        std::fprintf(stderr, "No CUDA device for this OpenGL context: %s\n", cudaGetErrorString(err));
+        return 1;
+    }
+    if ((err = cudaSetDevice(device)) != cudaSuccess) {
+        std::fprintf(stderr, "CUDA device selection failed: %s\n", cudaGetErrorString(err));
+        return 1;
+    }
+    cudaDeviceProp properties{};
+    if ((err = cudaGetDeviceProperties(&properties, device)) != cudaSuccess) {
+        std::fprintf(stderr, "CUDA device query failed: %s\n", cudaGetErrorString(err));
         return 1;
     }
 
-    auto gl_ctx = SDL_GL_CreateContext(window);
-    SDL_GL_MakeCurrent(window, gl_ctx);
-    SDL_GL_SetSwapInterval(1);
-
-    if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(SDL_GL_GetProcAddress))) {
-        std::fprintf(stderr, "glad failed to load OpenGL\n");
-        return 1;
-    }
-
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO();
-    ImGui::StyleColorsDark();
-    ImGui_ImplSDL2_InitForOpenGL(window, gl_ctx);
-    ImGui_ImplOpenGL3_Init(kGlslVersion);
-
-    auto tex = make_interop_texture(kTextureWidth, kTextureHeight);
-
-    const Uint64 start_ticks = SDL_GetPerformanceCounter();
-    const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
-
+    using namespace bhr::workbench;
+    StarfieldOwner starfield; // Outlives all in-flight viewport work.
+    Viewport viewport;
+    State state{};
+    Controls controls{};
     bool running = true;
-    bool show_controls = false;
     while (running) {
-        SDL_Event ev;
-        while (SDL_PollEvent(&ev)) {
-            ImGui_ImplSDL2_ProcessEvent(&ev);
-            if (ev.type == SDL_QUIT) running = false;
-            if (ev.type == SDL_KEYDOWN
-                && ev.key.repeat == 0
-                && ev.key.keysym.sym == kControlsToggleKey) {
-                show_controls = !show_controls;
-            }
-            if (ev.type == SDL_WINDOWEVENT
-                && ev.window.event == SDL_WINDOWEVENT_CLOSE
-                && ev.window.windowID == SDL_GetWindowID(window)) {
-                running = false;
+        SDL_Event event;
+        while (SDL_PollEvent(&event)) {
+            ImGui_ImplSDL2_ProcessEvent(&event);
+            if (event.type == SDL_QUIT) running = false;
+            if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE
+                && event.window.windowID == SDL_GetWindowID(application.window)) running = false;
+            if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
+                state = shortcut(state, event.key.keysym.sym);
+                if (event.key.keysym.sym == SDLK_ESCAPE && !ImGui::GetIO().WantCaptureKeyboard) running = false;
             }
         }
-
-        const double elapsed = static_cast<double>(SDL_GetPerformanceCounter() - start_ticks) / freq;
-        run_gradient_once(tex, static_cast<float>(elapsed));
+        if (!running) break;
+        if (viewport.poll()) {
+            state = completed(state);
+            if (controls.continuous) state = requested(state);
+        }
+        if (state.rendering && !viewport.busy() && !viewport.error().empty())
+            state = failed_render(state, viewport.error());
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
-
-        if (show_controls) {
-            ImGui::SetNextWindowPos(ImVec2(24.0f, 24.0f), ImGuiCond_FirstUseEver);
-            ImGui::SetNextWindowBgAlpha(0.85f);
-            constexpr ImGuiWindowFlags kControlsWindowFlags =
-                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings;
-            if (ImGui::Begin("Renderer Controls", &show_controls, kControlsWindowFlags)) {
-                ImGui::TextUnformatted("blackhole-workbench v0.0.1");
-                ImGui::Separator();
-                ImGui::Text("CUDA device: %s", bhr::cuda_device_name());
-                ImGui::Text("FPS: %.1f", io.Framerate);
-                ImGui::Separator();
-                ImGui::TextUnformatted("Press F1 to hide controls");
-            }
-            ImGui::End();
+        draw_viewport(state, viewport);
+        state = draw_controls(state, controls, viewport, starfield.value, properties.name);
+        if (!state.rendering && state.params.enable_starfield && !starfield.value.is_valid())
+            state = failed_render(state, "Load the preset's EXR starfield or disable starfield sampling.");
+        if (can_submit(state, starfield.value.is_valid()) && !viewport.busy()) {
+            if (viewport.submit(state.params, starfield.value)) state = submitted(state);
+            else if (!viewport.error().empty()) state = failed_render(submitted(state), viewport.error());
         }
 
-        ImGui::Begin("Viewport");
-        ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(tex.gl_tex)),
-                     ImVec2(static_cast<float>(kTextureWidth),
-                            static_cast<float>(kTextureHeight)));
-        ImGui::End();
-
         ImGui::Render();
-        int w, h;
-        SDL_GetWindowSize(window, &w, &h);
-        glViewport(0, 0, w, h);
-        glClearColor(0.08f, 0.08f, 0.10f, 1.0f);
+        int width = 0, height = 0;
+        SDL_GL_GetDrawableSize(application.window, &width, &height);
+        glViewport(0, 0, width, height);
+        glClearColor(0.02f, 0.025f, 0.04f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        SDL_GL_SwapWindow(window);
+        SDL_GL_SwapWindow(application.window);
+        if (SDL_GetWindowFlags(application.window) & SDL_WINDOW_MINIMIZED) SDL_Delay(16);
     }
+    if (!viewport.shutdown()) return 1;
+    return bhr::destroy_starfield(starfield.value) ? 0 : 1;
+}
+} // namespace
 
-    destroy_interop_texture(tex);
-
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
-    ImGui::DestroyContext();
-    SDL_GL_DeleteContext(gl_ctx);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-    return 0;
+int main(int, char**) {
+    try { return run(); }
+    catch (const std::exception& error) {
+        std::fprintf(stderr, "Workbench failed: %s\n", error.what());
+        return 1;
+    }
 }
