@@ -32,6 +32,29 @@ TEST_CASE("RHS smoke test: velocity passes through correctly") {
     CHECK(d.theta == doctest::Approx(0.0f));
 }
 
+TEST_CASE("Distant axial Schwarzschild radial ray reaches the horizon with default controls") {
+    const bhr::GeodesicState state{
+        .r = 50.0f,
+        .theta = 0.0f,
+        .phi = 0.0f,
+        .t = 0.0f,
+        .dr_dlam = -2500.0f,
+        .dth_dlam = 0.0f,
+    };
+    const bhr::Conserved conserved{.E = 1.0f, .Lz = 0.0f, .Q = 0.0f};
+    const bhr::IntegratorConfig config{
+        .disk_r_inner = 100.0f,
+        .disk_r_outer = 200.0f,
+    };
+
+    const auto hit = bhr::integrate_rk45(state, 0.0f, conserved, config);
+    CHECK(hit.type == bhr::HitType::kHorizon);
+    CHECK(hit.r == doctest::Approx(
+        bhr::horizon_radius(0.0f) * (1.0f + config.horizon_eps)));
+    CHECK(hit.lambda == doctest::Approx(
+        1.0f / hit.r - 1.0f / state.r).epsilon(1e-5));
+}
+
 TEST_CASE("Photon dropped radially from r=5, a=0, aimed at horizon → kHorizon") {
     // Start close to horizon so the inward momentum dominates before adaptive
     // step control saturates. Physical IC: dr_dlam = -sqrt(R(r)) = -r^2 for E=1,Lz=0,a=0.

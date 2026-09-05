@@ -113,6 +113,22 @@ __host__ __device__ HitInfo integrate_rk45(GeodesicState s, float a, const Conse
     const float rp = horizon_radius(a);
     const float horizon_limit = rp * (1.0f + cfg.horizon_eps);
 
+    // For an inward Schwarzschild ray with zero angular momentum, the radial
+    // equation has the exact solution 1/r(lambda) = 1/r0 + |E| lambda.
+    // Taking the legacy adaptive system through the Boyer-Lindquist horizon is
+    // ill-conditioned because dt/dlambda diverges there and can numerically
+    // reverse the radial state before the horizon event is observed.
+    if (a == 0.0f && c.Lz == 0.0f && c.Q == 0.0f && c.E != 0.0f &&
+        s.dr_dlam < 0.0f && s.r > horizon_limit && s.r < cfg.r_max) {
+        HitInfo radial_hit{};
+        radial_hit.type = HitType::kHorizon;
+        radial_hit.r = horizon_limit;
+        radial_hit.theta = s.theta;
+        radial_hit.phi = s.phi;
+        radial_hit.lambda = (1.0f / horizon_limit - 1.0f / s.r) / fabsf(c.E);
+        return radial_hit;
+    }
+
     float h = cfg.h_init;
     float lam = 0.0f;
 
