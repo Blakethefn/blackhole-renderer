@@ -1,7 +1,7 @@
 // SDL2 + OpenGL 3.3 + Dear ImGui + CUDA-GL interop.
 // Allocates an RGBA8 GL texture, registers it with CUDA, and on each frame
 // runs a CUDA kernel that writes a pulsing gradient. ImGui displays the
-// texture inside a panel.
+// texture in a viewport and exposes diagnostics from a toggleable overlay.
 
 #include <glad/glad.h>
 #include <SDL.h>
@@ -26,6 +26,7 @@ constexpr int kInitialHeight = 720;
 constexpr int kTextureWidth = 512;
 constexpr int kTextureHeight = 288;
 constexpr const char* kGlslVersion = "#version 330 core";
+constexpr SDL_Keycode kControlsToggleKey = SDLK_F1;
 
 struct InteropTexture {
     GLuint gl_tex = 0;
@@ -151,11 +152,17 @@ int main(int, char**) {
     const double freq = static_cast<double>(SDL_GetPerformanceFrequency());
 
     bool running = true;
+    bool show_controls = false;
     while (running) {
         SDL_Event ev;
         while (SDL_PollEvent(&ev)) {
             ImGui_ImplSDL2_ProcessEvent(&ev);
             if (ev.type == SDL_QUIT) running = false;
+            if (ev.type == SDL_KEYDOWN
+                && ev.key.repeat == 0
+                && ev.key.keysym.sym == kControlsToggleKey) {
+                show_controls = !show_controls;
+            }
             if (ev.type == SDL_WINDOWEVENT
                 && ev.window.event == SDL_WINDOWEVENT_CLOSE
                 && ev.window.windowID == SDL_GetWindowID(window)) {
@@ -170,12 +177,21 @@ int main(int, char**) {
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::Begin("Hello");
-        ImGui::Text("blackhole-workbench v0.0.1");
-        ImGui::Separator();
-        ImGui::Text("CUDA device: %s", bhr::cuda_device_name());
-        ImGui::Text("FPS: %.1f", io.Framerate);
-        ImGui::End();
+        if (show_controls) {
+            ImGui::SetNextWindowPos(ImVec2(24.0f, 24.0f), ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowBgAlpha(0.85f);
+            constexpr ImGuiWindowFlags kControlsWindowFlags =
+                ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings;
+            if (ImGui::Begin("Renderer Controls", &show_controls, kControlsWindowFlags)) {
+                ImGui::TextUnformatted("blackhole-workbench v0.0.1");
+                ImGui::Separator();
+                ImGui::Text("CUDA device: %s", bhr::cuda_device_name());
+                ImGui::Text("FPS: %.1f", io.Framerate);
+                ImGui::Separator();
+                ImGui::TextUnformatted("Press F1 to hide controls");
+            }
+            ImGui::End();
+        }
 
         ImGui::Begin("Viewport");
         ImGui::Image(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(tex.gl_tex)),
