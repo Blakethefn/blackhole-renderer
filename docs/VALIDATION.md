@@ -5,6 +5,9 @@ result means. It does not convert an unavailable GPU check into a pass.
 
 ## Verified local environment
 
+The table below records the repaired Plan 6 baseline. Current Plan 7 results
+and coverage follow in their own section.
+
 - Ubuntu 24.04.4 x86_64, glibc 2.39
 - CMake 3.28.3, Ninja 1.11.1, GCC/G++ 13.3.0
 - CUDA Toolkit 12.0.140, NVIDIA driver 595.58.03
@@ -48,6 +51,81 @@ The unchanged image gates are:
 - Kerr spin 0.9 PSNR: 29.7607 dB, threshold 15 dB.
 - Schwarzschild golden PNG: byte-identical.
 
+## Plan 7 scene/shot foundation — 2026-09-06
+
+Verified implementation: `bf07b1d`. Fresh isolated builds use the environment above,
+existing pinned dependencies, and the original numerical/golden tests.
+
+| Surface | Result |
+|---|---|
+| CUDA-free Debug CPU | 55/55 passed |
+| CUDA-free AddressSanitizer + UndefinedBehaviorSanitizer | 55/55 passed |
+| Release headless CUDA | 85/85 passed |
+| Release GUI/CUDA/OpenGL | 86/86 passed, including presentation |
+| Selected-frame CLI | Byte-identical fixed/legacy PNGs; distinct orbit 0/300/599 PNGs |
+| Install smoke | Passed in both CUDA builds; shot fixture/docs installed |
+
+Schwarzschild golden bytes and strict off-axis classifications remain unchanged.
+Measured dual-integrator PSNR is still 27.0318 dB (25 dB gate) and 29.7607 dB
+(15 dB gate). No kernel, `RenderParams` layout, projection or golden asset changed.
+
+Coverage is GCC 13 gcov executable-line coverage from a fresh Debug build with
+`BHR_ENABLE_CUDA=OFF`, `--coverage`, and the complete CPU test suite:
+
+| File | Covered lines | Coverage |
+|---|---:|---:|
+| `lib/src/shot.cpp` | 94/94 | 100% |
+| `lib/src/shot_io.cpp` | 161/168 | 95.83% |
+| `app/src/shot_options.hpp` | 26/26 | 100% |
+| `lib/include/bhr/shot.hpp` | 1/1 | 100% |
+| New CPU surface total | 282/289 | **97.58%** |
+| Factored existing `lib/src/presets.cpp` | 102/102 | 100% |
+
+This excludes third-party code, test code, the CUDA-dependent CLI render glue,
+kernels and GUI. It is not project-wide or GPU coverage. Uncovered lines are
+exceptional temporary-stream setup/cleanup and one field-set builder return line; real
+partial-write and rename failures are exercised and preserve the old document.
+
+Reproduce the measured CPU build and inspect per-file gcov JSON:
+
+```bash
+COVERAGE="$HOME/.cache/blackhole-renderer/plan7-coverage"
+cmake -S . -B "$COVERAGE" -G Ninja -DBHR_ENABLE_CUDA=OFF \
+  -DCMAKE_BUILD_TYPE=Debug '-DCMAKE_CXX_FLAGS=--coverage -Wall -Wextra -Wpedantic' \
+  -DCMAKE_EXE_LINKER_FLAGS=--coverage
+cmake --build "$COVERAGE" -j 4
+ctest --test-dir "$COVERAGE" --output-on-failure
+mkdir -p "$COVERAGE/report"
+(cd "$COVERAGE/report" && gcov -j \
+  "$COVERAGE/lib/CMakeFiles/bhr_cpu_support.dir/src/shot.cpp.gcno" \
+  "$COVERAGE/lib/CMakeFiles/bhr_cpu_support.dir/src/shot_io.cpp.gcno" \
+  "$COVERAGE/lib/CMakeFiles/bhr_cpu_support.dir/src/presets.cpp.gcno" \
+  "$COVERAGE/tests/CMakeFiles/bhr_cpu_tests.dir/unit/test_shot.cpp.gcno" \
+  "$COVERAGE/tests/CMakeFiles/bhr_cpu_tests.dir/unit/test_shot_cli.cpp.gcno")
+```
+
+Use a fresh build directory when measuring another revision to avoid mixing old
+`.gcda` profiles. CPU sanitizers used a separate Debug build with
+`-DCMAKE_CXX_FLAGS="-fsanitize=address,undefined -fno-omit-frame-pointer"` and
+`-DCMAKE_EXE_LINKER_FLAGS=-fsanitize=address,undefined`.
+
+The headless and GUI suites were run with
+`ctest --test-dir "$HOME/.cache/blackhole-renderer/plan7-headless" --output-on-failure`
+and the equivalent `plan7-gui` path. GUI configuration used the already installed
+SDL2 CMake package; no system packages/toolchains were installed.
+[SHOTS.md](SHOTS.md) supplies the exact selected-frame commands and schema.
+
+Compute Sanitizer 2022.4.1 was retried on a fixed selected-frame command with the
+existing injection path. It exited 255 before the first instrumented API call
+and could not find the exit code. CUDA sanitizer instrumentation remains
+**unavailable**, even though CPU sanitizers and actual CUDA/OpenGL tests pass.
+
+Only four 256×144 shot samples plus a legacy parity image were rendered for the
+handoff, outside the source tree. The configured HDD mount was absent, so the
+existing home cache was used. Static emission, POSIX atomic-save scope without
+power-loss durability, and no cross-device bitwise guarantee remain limitations.
+No video, cache, cinematic shading or GUI authoring is implemented here.
+
 ## CI interpretation
 
 `cpu-contracts.yml` runs on a standard Ubuntu hosted runner without CUDA.
@@ -65,4 +143,4 @@ Sanitizer 2022.4.1 still exits before instrumentation. With only
 `LD_LIBRARY_PATH` it cannot find `libsanitizer-collection.so`; with
 `--injection-path /usr/lib/nvidia-cuda-toolkit/compute-sanitizer` it reports
 "Target application terminated before first instrumented API call" and cannot
-find the exit code. No sanitizer pass is claimed.
+find the exit code. No CUDA sanitizer pass is claimed.
