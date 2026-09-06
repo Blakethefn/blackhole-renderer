@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "spin": 0,
+  "camera": {
+    "r_cam": 50,
+    "theta_cam_deg": 85,
+    "phi_cam_deg": 0,
+    "fov_deg": 35,
+    "width": 1024,
+    "height": 576
+  },
+  "disk": {
+    "r_inner": 6,
+    "r_outer": 20,
+    "peak_temp_K": 3500,
+    "brightness": 1
+  },
+  "enable_doppler": true,
+  "enable_redshift": true,
+  "enable_beaming": true,
+  "enable_starfield": false,
+  "integrator": "rk45"
+}

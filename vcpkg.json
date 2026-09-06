@@ -1,7 +1,8 @@
 {
   "name": "blackhole-renderer",
-  "version-string": "0.0.1",
-  "description": "Physically accurate Kerr black hole renderer",
+  "version-string": "0.9.0-rc.1",
+  "description": "Development CUDA Kerr black-hole renderer and interactive workbench",
+  "builtin-baseline": "04a9d8e5212d01ee1dd9478eadd9caade4f8b0d4",
   "dependencies": [
     "sdl2"
   ]

@@ -1,4 +1,30 @@
-# Single doctest executable aggregating all unit tests.
+# Hosted CI compiles and runs this subset without a CUDA toolkit or GPU.
+if(NOT BHR_ENABLE_CUDA)
+    add_executable(bhr_cpu_tests
+        unit/test_main.cpp
+        unit/test_blackbody.cpp
+        unit/test_cli_options.cpp
+        unit/test_disk_physics.cpp
+        unit/test_elliptic.cpp
+        unit/test_ferrari.cpp
+        unit/test_image.cpp
+        unit/test_kerr.cpp
+        unit/test_params.cpp
+        unit/test_params_validate.cpp
+        unit/test_presets.cpp
+        unit/test_redshift.cpp
+        unit/test_workbench_state.cpp
+    )
+    target_include_directories(bhr_cpu_tests PRIVATE ${CMAKE_SOURCE_DIR}/app/src)
+    target_link_libraries(bhr_cpu_tests PRIVATE bhr::cpu_support bhr_doctest)
+    include(${CMAKE_SOURCE_DIR}/external/doctest/scripts/cmake/doctest.cmake)
+    doctest_discover_tests(bhr_cpu_tests
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        PROPERTIES LABELS cpu)
+    return()
+endif()
+
+# CUDA suite aggregating unit and integration tests.
 add_executable(bhr_tests
     unit/test_main.cpp
     unit/test_hello.cpp
@@ -35,18 +61,27 @@ target_link_libraries(bhr_tests
 
 # doctest auto-discovery — each TEST_CASE becomes a CTest test.
 include(${CMAKE_SOURCE_DIR}/external/doctest/scripts/cmake/doctest.cmake)
-doctest_discover_tests(bhr_tests WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+doctest_discover_tests(bhr_tests
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    PROPERTIES LABELS gpu)
 
 add_test(NAME cli_contract COMMAND ${CMAKE_COMMAND}
     -DCLI=$<TARGET_FILE:blackhole-cli>
     -DBENCHMARK=$<TARGET_FILE:blackhole-benchmark>
     -DTEST_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/cli-contract
     -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_cli.cmake)
-set_tests_properties(cli_contract PROPERTIES TIMEOUT 120)
+set_tests_properties(cli_contract PROPERTIES TIMEOUT 120 LABELS gpu)
+
+add_test(NAME install_smoke COMMAND ${CMAKE_COMMAND}
+    -DBHR_BUILD_DIR=${CMAKE_BINARY_DIR}
+    -DBHR_INSTALL_ROOT=${CMAKE_CURRENT_BINARY_DIR}/install-smoke
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_install.cmake)
+set_tests_properties(install_smoke PROPERTIES TIMEOUT 120 LABELS packaging)
 
 if(BHR_BUILD_APP)
     add_executable(bhr_viewport_tests integration/test_viewport.cpp)
     target_link_libraries(bhr_viewport_tests PRIVATE bhr_workbench_viewport bhr_doctest SDL2::SDL2)
     add_test(NAME workbench_viewport COMMAND bhr_viewport_tests)
-    set_tests_properties(workbench_viewport PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    set_tests_properties(workbench_viewport PROPERTIES
+        SKIP_RETURN_CODE 77 TIMEOUT 120 LABELS presentation)
 endif()

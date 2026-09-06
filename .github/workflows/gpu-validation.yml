@@ -1,0 +1,70 @@
+name: GPU validation and candidate package
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cuda-headless:
+    runs-on: [self-hosted, linux, x64, nvidia-gpu]
+    timeout-minutes: 30
+    env:
+      BHR_BUILD_DIR: ${{ runner.temp }}/blackhole-renderer-headless
+      BHR_CUDA_ARCHITECTURES: "86"
+    steps:
+      - name: Check out pinned sources and submodules
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Configure CUDA headless build
+        run: >-
+          cmake --preset linux-headless -B "$BHR_BUILD_DIR"
+          -DCMAKE_CUDA_ARCHITECTURES="$BHR_CUDA_ARCHITECTURES"
+
+      - name: Build CUDA headless targets
+        run: cmake --build "$BHR_BUILD_DIR" -j
+
+      - name: Run CUDA suite and preserve physics failures
+        run: ctest --test-dir "$BHR_BUILD_DIR" --output-on-failure -LE presentation
+
+      - name: Package only after all CUDA release gates pass
+        run: cpack --config "$BHR_BUILD_DIR/CPackConfig.cmake"
+
+      - name: Upload checksummed headless candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: blackhole-renderer-headless-candidate
+          path: |
+            ${{ runner.temp }}/blackhole-renderer-headless/packages/*.tar.gz
+            ${{ runner.temp }}/blackhole-renderer-headless/packages/*.sha256
+          if-no-files-found: error
+
+  cuda-opengl-presentation:
+    runs-on: [self-hosted, linux, x64, nvidia-gpu, opengl]
+    timeout-minutes: 20
+    env:
+      BHR_BUILD_DIR: ${{ runner.temp }}/blackhole-renderer-presentation
+      BHR_CUDA_ARCHITECTURES: "86"
+      BHR_SDL_PREFIX: ${{ vars.BHR_SDL_PREFIX }}
+    steps:
+      - name: Check out pinned sources and submodules
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Configure CUDA and OpenGL build
+        run: >-
+          cmake --preset linux-release -B "$BHR_BUILD_DIR"
+          -DCMAKE_CUDA_ARCHITECTURES="$BHR_CUDA_ARCHITECTURES"
+          -DCMAKE_PREFIX_PATH="$BHR_SDL_PREFIX"
+
+      - name: Build workbench presentation test
+        run: cmake --build "$BHR_BUILD_DIR" --target blackhole-workbench bhr_viewport_tests -j
+
+      - name: Require real CUDA/OpenGL presentation
+        run: "$BHR_BUILD_DIR/tests/bhr_viewport_tests"

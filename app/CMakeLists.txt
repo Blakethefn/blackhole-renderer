@@ -49,3 +49,11 @@ target_link_libraries(blackhole-benchmark PRIVATE bhr::lib CUDA::cudart)
 set_target_properties(blackhole-benchmark PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/app
 )
+
+include(GNUInstallDirs)
+install(TARGETS blackhole-cli blackhole-benchmark
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+if(BHR_BUILD_APP)
+    install(TARGETS blackhole-workbench blackhole-preview-benchmark
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()

@@ -1,33 +1,105 @@
 {
   "version": 6,
-  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
   "configurePresets": [
     {
-      "name": "default",
-      "description": "Release build with vcpkg + CUDA sm_86",
-      "binaryDir": "${sourceDir}/build",
+      "name": "linux-release",
+      "displayName": "Linux CUDA release",
+      "description": "Release workbench and CLI for CUDA sm_86; override the architecture for another GPU",
+      "binaryDir": "$penv{HOME}/.cache/blackhole-renderer/${presetName}",
       "generator": "Ninja",
       "cacheVariables": {
+        "BHR_ENABLE_CUDA": "ON",
+        "BHR_BUILD_APP": "ON",
+        "BHR_BUILD_TESTS": "ON",
         "CMAKE_BUILD_TYPE": "Release",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
         "CMAKE_CUDA_ARCHITECTURES": "86"
       }
     },
     {
-      "name": "debug",
-      "inherits": "default",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+      "name": "default",
+      "displayName": "Linux CUDA release (compatibility alias)",
+      "inherits": "linux-release"
+    },
+    {
+      "name": "linux-headless",
+      "displayName": "Linux CUDA headless release",
+      "inherits": "linux-release",
+      "cacheVariables": {
+        "BHR_BUILD_APP": "OFF"
+      }
+    },
+    {
+      "name": "cpu-tests",
+      "displayName": "CUDA-free CPU contract tests",
+      "description": "Builds portable math, validation, preset, image, CLI parsing and workbench-state tests",
+      "binaryDir": "$penv{HOME}/.cache/blackhole-renderer/${presetName}",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "BHR_ENABLE_CUDA": "OFF",
+        "BHR_BUILD_APP": "OFF",
+        "BHR_BUILD_TESTS": "ON",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
     }
   ],
   "buildPresets": [
+    { "name": "linux-release", "configurePreset": "linux-release" },
     { "name": "default", "configurePreset": "default" },
-    { "name": "debug", "configurePreset": "debug" }
+    { "name": "linux-headless", "configurePreset": "linux-headless" },
+    { "name": "cpu-tests", "configurePreset": "cpu-tests" }
   ],
   "testPresets": [
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "output": { "outputOnFailure": true }
+    },
     {
       "name": "default",
       "configurePreset": "default",
       "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "linux-headless",
+      "configurePreset": "linux-headless",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "cpu-tests",
+      "configurePreset": "cpu-tests",
+      "output": { "outputOnFailure": true }
+    }
+  ],
+  "packagePresets": [
+    {
+      "name": "linux-release",
+      "configurePreset": "linux-release",
+      "generators": ["TGZ"]
+    },
+    {
+      "name": "linux-headless",
+      "configurePreset": "linux-headless",
+      "generators": ["TGZ"]
+    }
+  ],
+  "workflowPresets": [
+    {
+      "name": "cpu-ci",
+      "steps": [
+        { "type": "configure", "name": "cpu-tests" },
+        { "type": "build", "name": "cpu-tests" },
+        { "type": "test", "name": "cpu-tests" }
+      ]
+    },
+    {
+      "name": "linux-release-candidate",
+      "steps": [
+        { "type": "configure", "name": "linux-release" },
+        { "type": "build", "name": "linux-release" },
+        { "type": "test", "name": "linux-release" },
+        { "type": "package", "name": "linux-release" }
+      ]
     }
   ]
 }

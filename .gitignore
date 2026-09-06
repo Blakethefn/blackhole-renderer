@@ -45,9 +45,9 @@ assets/*.png
 # User presets (optional — keep bundled ones, ignore local saves)
 presets/user/
 
-# Superpowers brainstorming session
+# Historical local planning material
 .superpowers/
-docs/
+docs/superpowers/
 
 # Local planning context and implementation brief for Astra
 /.astra/

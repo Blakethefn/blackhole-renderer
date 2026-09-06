@@ -1,6 +1,7 @@
 #include "doctest.h"
 #include "bhr/presets.hpp"
 
+#include <array>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -64,6 +65,34 @@ TEST_CASE("workbench preset is a valid deterministic RK45 preview") {
     CHECK(params.camera.r_cam == doctest::Approx(30.0f));
     CHECK(params.disk.peak_temp_K == doctest::Approx(40000.0f));
     check_same(params, bhr::workbench_preset());
+}
+
+TEST_CASE("committed gallery presets are valid prograde RK45 scenes") {
+    struct ExpectedGalleryScene {
+        const char* path;
+        float spin;
+    };
+    constexpr std::array scenes{
+        ExpectedGalleryScene{"presets/gallery/schwarzschild.json", 0.0f},
+        ExpectedGalleryScene{"presets/gallery/kerr-moderate.json", 0.5f},
+        ExpectedGalleryScene{"presets/gallery/kerr-high-prograde.json", 0.99f},
+    };
+
+    for (const auto& scene : scenes) {
+        CAPTURE(scene.path);
+        bhr::RenderParams params;
+        std::string error;
+        REQUIRE(bhr::load_preset(scene.path, params, error));
+        CHECK(error.empty());
+        CHECK(bhr::validation_error(params) == nullptr);
+        CHECK(params.spin == doctest::Approx(scene.spin));
+        CHECK(params.spin >= 0.0f);
+        CHECK(params.disk.r_inner >= bhr::r_isco(params.spin));
+        CHECK(params.integrator == bhr::IntegratorKind::kRK45);
+        CHECK_FALSE(params.enable_starfield);
+        CHECK(params.camera.width == 1024);
+        CHECK(params.camera.height == 576);
+    }
 }
 
 TEST_CASE("presets round trip every render field without changing floats") {
