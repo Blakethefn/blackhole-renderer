@@ -1,4 +1,5 @@
 #include "bhr/presets.hpp"
+#include "preset_json.hpp"
 
 #include <nlohmann/json.hpp>
 #include <cmath>
@@ -54,7 +55,9 @@ bool boolean(const Json& object, const char* field) {
     return value.get<bool>();
 }
 
-Json to_json(const RenderParams& params) {
+} // namespace
+
+Json detail::preset_to_json(const RenderParams& params) {
     return {
         {"schema_version", kSchemaVersion},
         {"spin", params.spin},
@@ -69,7 +72,7 @@ Json to_json(const RenderParams& params) {
     };
 }
 
-RenderParams from_json(const Json& json) {
+RenderParams detail::preset_from_json(const Json& json) {
     require_fields(json, {"schema_version", "spin", "camera", "disk", "enable_doppler",
                          "enable_redshift", "enable_beaming", "enable_starfield", "integrator"}, "Preset");
     if (integer(json, "schema_version") != kSchemaVersion) throw std::runtime_error("Unsupported preset schema version");
@@ -94,8 +97,6 @@ RenderParams from_json(const Json& json) {
     return params;
 }
 
-} // namespace
-
 RenderParams workbench_preset() {
     return RenderParams{0.9f, {30.0f, 85.0f, 0.0f, 35.0f, 256, 144},
                         {2.321f, 20.0f, 40000.0f, 1.0f}, true, true, true, false, IntegratorKind::kRK45};
@@ -108,7 +109,7 @@ bool save_preset(const RenderParams& params, const std::string& path, std::strin
         return false;
     }
     try {
-        const std::string contents = to_json(params).dump(2) + '\n';
+        const std::string contents = detail::preset_to_json(params).dump(2) + '\n';
         std::ofstream output(path, std::ios::binary | std::ios::trunc);
         if (!output) throw std::runtime_error("Cannot open preset for writing: " + path);
         output << contents;
@@ -143,7 +144,7 @@ bool load_preset(const std::string& path, RenderParams& out, std::string& error)
             if (event == Json::parse_event_t::object_end) object_keys.pop_back();
             return true;
         };
-        const RenderParams loaded = from_json(Json::parse(contents, check_structure));
+        const RenderParams loaded = detail::preset_from_json(Json::parse(contents, check_structure));
         out = loaded;
         return true;
     } catch (const std::exception& failure) {

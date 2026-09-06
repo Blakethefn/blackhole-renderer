@@ -30,6 +30,8 @@ endif()
 
 foreach(required_path
     "${BHR_INSTALL_PREFIX}/share/blackhole-renderer/presets/reference.json"
+    "${BHR_INSTALL_PREFIX}/share/blackhole-renderer/presets/shots/reference.json"
+    "${BHR_INSTALL_PREFIX}/share/doc/blackhole-renderer/SHOTS.md"
     "${BHR_INSTALL_PREFIX}/share/doc/blackhole-renderer/README.md"
     "${BHR_INSTALL_PREFIX}/share/doc/blackhole-renderer/benchmarks/README.md"
     "${BHR_INSTALL_PREFIX}/share/doc/blackhole-renderer/licenses/TinyEXR-and-OpenEXR-BSD-3-Clause.txt"

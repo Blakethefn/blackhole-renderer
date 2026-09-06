@@ -110,6 +110,8 @@ endif()
 
 if(BHR_ENABLE_CUDA)
     include(GNUInstallDirs)
+    install(FILES presets/shots/reference.json
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole-renderer/presets/shots)
     install(FILES presets/reference.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole-renderer/presets)
     install(FILES
@@ -123,6 +125,7 @@ if(BHR_ENABLE_CUDA)
         CONTRIBUTING.md
         CODE_OF_CONDUCT.md
         THIRD_PARTY_NOTICES.md
+        docs/SHOTS.md
         docs/PUBLIC_API.md
         docs/RELEASE_CANDIDATE.md
         docs/VALIDATION.md

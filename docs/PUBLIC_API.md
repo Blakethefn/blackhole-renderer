@@ -27,6 +27,14 @@ is currently prograde only (`0` through `0.999`). RK45 is the reference/default;
 replace active parameters. External starfield paths are intentionally not
 embedded in preset JSON.
 
+`bhr/shot.hpp` adds immutable CPU-only `Scene`, `Shot`, `CinematicDocument` and
+`FrameSample` snapshots. The separate strict `bhr.cinematic` v1 format embeds a
+complete legacy preset. `evaluate_frame` resolves exact rational frame time and a
+fixed or smooth unwrapped BL orbit into the existing `RenderParams`. Load/import
+return new values; save uses atomic replacement. See [SHOTS.md](SHOTS.md) for the
+producer API, bounds, relative assets and selected-frame CLI. Runtime GPU ownership
+and the legacy preset APIs remain unchanged.
+
 ## Images and starfields
 
 `bhr::Image` owns host RGBA8 pixels and supports PNG output. `bhr::Starfield`

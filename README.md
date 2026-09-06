@@ -125,6 +125,13 @@ including effect toggles and resolution. External starfield paths are supplied
 separately. Preset loading is transactional and validated before replacing the
 active scene.
 
+## Deterministic shots
+
+One cinematic JSON document shares a physical scene between fixed-camera and
+smooth orbit shots. Render any selected frame with `--shot-file FILE --shot-id ID
+--frame INDEX --output FILE.png`. See [scene/shot schema and examples](docs/SHOTS.md).
+Disk emission is static in this foundation; animation and video export are deferred.
+
 ## Workbench
 
 ```bash
@@ -190,8 +197,8 @@ See [Public API contracts](docs/PUBLIC_API.md) and the headers under
 
 ## Tests and CI
 
-A standard CPU-only machine can run 45 math, validation, image, preset, CLI
-parsing, and workbench-state contracts without configuring CUDA:
+A standard CPU-only machine can run math, validation, image, preset, scene/shot,
+CLI parsing, and workbench-state contracts without configuring CUDA:
 
 ```bash
 cmake --workflow --preset cpu-ci

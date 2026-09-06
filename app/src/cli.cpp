@@ -3,6 +3,8 @@
 #include "bhr/image.hpp"
 #include "bhr/presets.hpp"
 #include "bhr/starfield.hpp"
+#include "bhr/shot.hpp"
+#include "shot_options.hpp"
 #include "cli_options.hpp"
 
 #include <chrono>
@@ -17,12 +19,15 @@ namespace {
 void print_usage(const char* executable) {
     std::fprintf(stderr,
         "Usage: %s [OPTIONS] --output FILE\n"
+        "  --shot-file FILE     cinematic scene/shot document (no legacy overrides)\n"
+        "  --shot-id ID         named shot (requires --shot-file and --frame)\n"
+        "  --frame INDEX        zero-based selected frame; renders one PNG\n"
         "  --params FILE        load a JSON preset; other options override it\n"
         "  --spin VALUE         black hole spin a/M (0..0.999), default 0\n"
         "  --resolution WxH     output size, default 1920x1080\n"
         "  --inclination DEG    camera polar angle, default 85\n"
         "  --azimuth DEG        camera azimuth, default 0\n"
-        "  --fov DEG            horizontal field of view, default 35\n"
+        "  --fov DEG            vertical field of view, default 35\n"
         "  --distance M         camera radius in M, default 50\n"
         "  --disk-inner R       disk inner radius in M, default 6\n"
         "  --disk-outer R       disk outer radius in M, default 20\n"
@@ -39,7 +44,7 @@ void print_usage(const char* executable) {
 }
 
 bool value_option(const std::string& option) {
-    return option == "--params" || option == "--spin" || option == "--resolution" ||
+    return bhr::cli::is_shot_option(option) || option == "--params" || option == "--spin" || option == "--resolution" ||
         option == "--inclination" || option == "--azimuth" || option == "--fov" ||
         option == "--distance" || option == "--disk-inner" || option == "--disk-outer" ||
         option == "--disk-temp" || option == "--brightness" || option == "--starfield" ||
@@ -59,6 +64,30 @@ struct StarfieldOwner {
     ~StarfieldOwner() { bhr::destroy_starfield(value); }
 };
 
+int render_one(const bhr::RenderParams& params, const std::string& starfield_path,
+               const std::string& output_path) {
+    StarfieldOwner starfield;
+    if (params.enable_starfield && !starfield_path.empty()
+        && !bhr::load_starfield(starfield_path, 16384, starfield.value)) {
+        throw std::runtime_error("Failed to load starfield: " + starfield_path);
+    }
+    std::fprintf(stderr,
+        "Rendering %dx%d, integrator=%s, spin=%.3f, incl=%.1f deg, azimuth=%.3f deg, fov=%.1f deg, r_cam=%.1f M -> %s\n",
+        params.camera.width, params.camera.height,
+        params.integrator == bhr::IntegratorKind::kRK45 ? "rk45" : "geokerr (approximate)", params.spin,
+        params.camera.theta_cam_deg, params.camera.phi_cam_deg, params.camera.fov_deg, params.camera.r_cam, output_path.c_str());
+
+    bhr::Image image;
+    const auto start = std::chrono::steady_clock::now();
+    bhr::render(params, starfield.value, image);
+    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
+    if (image.width == 0) throw std::runtime_error("Render failed (image is empty)");
+    if (!bhr::write_png(image, output_path)) throw std::runtime_error("Failed to write PNG: " + output_path);
+    if (!bhr::destroy_starfield(starfield.value)) throw std::runtime_error("Failed to release the starfield");
+    std::fprintf(stderr, "Done in %.3fs -> %s\n", seconds, output_path.c_str());
+    return 0;
+}
+
 int run(int argc, char** argv) {
     std::vector<std::pair<std::string, std::string>> options;
     std::string preset_path;
@@ -75,12 +104,29 @@ int run(int argc, char** argv) {
         }
         if (takes_value && i + 1 >= argc) throw std::runtime_error("Missing value for " + option);
         const std::string value = takes_value ? argv[++i] : "";
+        if (bhr::cli::is_shot_option(option) && value.rfind("--", 0) == 0)
+            throw std::runtime_error("Missing value for " + option);
         if (takes_value && value.empty()) throw std::runtime_error("Empty value for " + option);
         if (option == "--params") {
             if (!preset_path.empty()) throw std::runtime_error("--params can only be specified once");
             preset_path = value;
         }
         options.emplace_back(option, value);
+    }
+
+    if (const auto selected = bhr::cli::shot_selection(options)) {
+        const auto document = bhr::load_cinematic(selected->file);
+        const auto frame = bhr::evaluate_frame(document, selected->id, selected->frame);
+        const auto asset = bhr::resolve_starfield(document.scene, selected->file);
+        std::fprintf(stderr, "Shot %s frame=%llu time=%llu/%llu s (%.9f) duration=%llu/%llu s (%.9f)\n",
+            frame.shot_id.c_str(), static_cast<unsigned long long>(frame.frame_index),
+            static_cast<unsigned long long>(frame.time.numerator), static_cast<unsigned long long>(frame.time.denominator),
+            frame.time.seconds(), static_cast<unsigned long long>(frame.duration.numerator),
+            static_cast<unsigned long long>(frame.duration.denominator), frame.duration.seconds());
+        if (frame.loop_phase) std::fprintf(stderr, "Emission loop phase=%llu/%llu (metadata only; static emission)\n",
+            static_cast<unsigned long long>(frame.loop_phase->numerator),
+            static_cast<unsigned long long>(frame.loop_phase->denominator));
+        return render_one(frame.params, asset, selected->output);
     }
 
     bhr::RenderParams params;
@@ -123,26 +169,7 @@ int run(int argc, char** argv) {
         throw std::runtime_error("Preset enables starfield: supply --starfield PATH or --no-starfield");
     }
 
-    StarfieldOwner starfield;
-    if (params.enable_starfield && !starfield_path.empty()
-        && !bhr::load_starfield(starfield_path, 16384, starfield.value)) {
-        throw std::runtime_error("Failed to load starfield: " + starfield_path);
-    }
-    std::fprintf(stderr,
-        "Rendering %dx%d, integrator=%s, spin=%.3f, incl=%.1f deg, fov=%.1f deg, r_cam=%.1f M -> %s\n",
-        params.camera.width, params.camera.height,
-        params.integrator == bhr::IntegratorKind::kRK45 ? "rk45" : "geokerr (approximate)", params.spin,
-        params.camera.theta_cam_deg, params.camera.fov_deg, params.camera.r_cam, output_path.c_str());
-
-    bhr::Image image;
-    const auto start = std::chrono::steady_clock::now();
-    bhr::render(params, starfield.value, image);
-    const double seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
-    if (image.width == 0) throw std::runtime_error("Render failed (image is empty)");
-    if (!bhr::write_png(image, output_path)) throw std::runtime_error("Failed to write PNG: " + output_path);
-    if (!bhr::destroy_starfield(starfield.value)) throw std::runtime_error("Failed to release the starfield");
-    std::fprintf(stderr, "Done in %.3fs -> %s\n", seconds, output_path.c_str());
-    return 0;
+    return render_one(params, starfield_path, output_path);
 }
 
 } // namespace

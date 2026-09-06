@@ -2,6 +2,8 @@ if(NOT BHR_ENABLE_CUDA)
     add_library(bhr_cpu_support STATIC
         src/image.cpp
         src/presets.cpp
+        src/shot.cpp
+        src/shot_io.cpp
     )
     target_include_directories(bhr_cpu_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
     target_link_libraries(bhr_cpu_support PUBLIC bhr_stb PRIVATE bhr_json)
@@ -17,6 +19,8 @@ add_library(libblackhole STATIC
     src/renderer.cu
     src/starfield.cu
     src/presets.cpp
+    src/shot.cpp
+    src/shot_io.cpp
 )
 
 # Output name: "blackhole" → libblackhole.a

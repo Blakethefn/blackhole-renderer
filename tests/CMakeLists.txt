@@ -12,11 +12,14 @@ if(NOT BHR_ENABLE_CUDA)
         unit/test_params.cpp
         unit/test_params_validate.cpp
         unit/test_presets.cpp
+        unit/test_shot.cpp
+        unit/test_shot_io.cpp
+        unit/test_shot_cli.cpp
         unit/test_redshift.cpp
         unit/test_workbench_state.cpp
     )
     target_include_directories(bhr_cpu_tests PRIVATE ${CMAKE_SOURCE_DIR}/app/src)
-    target_link_libraries(bhr_cpu_tests PRIVATE bhr::cpu_support bhr_doctest)
+    target_link_libraries(bhr_cpu_tests PRIVATE bhr::cpu_support bhr_doctest bhr_json)
     include(${CMAKE_SOURCE_DIR}/external/doctest/scripts/cmake/doctest.cmake)
     doctest_discover_tests(bhr_cpu_tests
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -32,6 +35,9 @@ add_executable(bhr_tests
     unit/test_params.cpp
     unit/test_params_validate.cpp
     unit/test_presets.cpp
+    unit/test_shot.cpp
+    unit/test_shot_io.cpp
+    unit/test_shot_cli.cpp
     unit/test_cli_options.cpp
     unit/test_workbench_state.cpp
     unit/test_starfield.cpp
@@ -56,6 +62,7 @@ target_link_libraries(bhr_tests
     PRIVATE
         bhr::lib
         bhr_doctest
+        bhr_json
         CUDA::cudart
 )
 
@@ -85,3 +92,10 @@ if(BHR_BUILD_APP)
     set_tests_properties(workbench_viewport PROPERTIES
         SKIP_RETURN_CODE 77 TIMEOUT 120 LABELS presentation)
 endif()
+
+add_test(NAME shot_cli_contract COMMAND ${CMAKE_COMMAND}
+    -DCLI=$<TARGET_FILE:blackhole-cli>
+    -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+    -DTEST_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/shot-cli-contract
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_shot_cli.cmake)
+set_tests_properties(shot_cli_contract PROPERTIES TIMEOUT 120 LABELS gpu)

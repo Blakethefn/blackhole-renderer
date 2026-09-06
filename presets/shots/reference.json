@@ -1,0 +1,69 @@
+{
+  "format": "bhr.cinematic",
+  "schema_version": 1,
+  "scene": {
+    "preset": {
+      "schema_version": 1,
+      "spin": 0.9,
+      "camera": {
+        "r_cam": 30,
+        "theta_cam_deg": 85,
+        "phi_cam_deg": 0,
+        "fov_deg": 35,
+        "width": 256,
+        "height": 144
+      },
+      "disk": {
+        "r_inner": 2.321,
+        "r_outer": 20,
+        "peak_temp_K": 40000,
+        "brightness": 1
+      },
+      "enable_doppler": true,
+      "enable_redshift": true,
+      "enable_beaming": true,
+      "enable_starfield": false,
+      "integrator": "rk45"
+    }
+  },
+  "shots": [
+    {
+      "id": "fixed",
+      "frame_count": 180,
+      "fps": {
+        "numerator": 60,
+        "denominator": 1
+      },
+      "width": 256,
+      "height": 144,
+      "loop_frames": 180,
+      "camera": {
+        "kind": "fixed"
+      }
+    },
+    {
+      "id": "orbit",
+      "frame_count": 600,
+      "fps": {
+        "numerator": 60,
+        "denominator": 1
+      },
+      "width": 256,
+      "height": 144,
+      "loop_frames": 180,
+      "camera": {
+        "kind": "orbit",
+        "start": {
+          "r_cam": 40,
+          "theta_cam_deg": 75,
+          "phi_cam_deg": 170
+        },
+        "end": {
+          "r_cam": 25,
+          "theta_cam_deg": 88,
+          "phi_cam_deg": 190
+        }
+      }
+    }
+  ]
+}
