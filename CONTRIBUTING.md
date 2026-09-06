@@ -34,8 +34,8 @@ ctest --test-dir "$HOME/.cache/blackhole-renderer/contrib" --output-on-failure
 
 Use `linux-headless` when SDL2/OpenGL are unavailable. Presentation tests need a
 real OpenGL 3.3 display and CUDA/OpenGL interop on the same NVIDIA GPU. State any
-checks you could not run. The current development candidate has one retained
-off-axis dual-integrator failure; see [validation](docs/VALIDATION.md).
+checks you could not run. See [validation](docs/VALIDATION.md) for the current
+development candidate's physics and platform evidence.
 
 ## Code and review expectations
 

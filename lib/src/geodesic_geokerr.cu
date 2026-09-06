@@ -106,6 +106,9 @@ BHR_HD HitInfo integrate_geokerr(GeodesicState s, float a, const Conserved& c,
     // --- Radial quartic roots via Ferrari ---
     const QuarticCoeffs qc = radial_quartic(a, c);
     const QuarticRoots roots = ferrari_quartic(qc.a, qc.b, qc.c, qc.d, qc.e);
+    const float r_horizon = horizon_radius(a);
+    const float u_cam     = 1.0f / fmaxf(s.r, 1e-6f);
+    const float u_horizon = 1.0f / fmaxf(r_horizon, 1e-6f);
 
     // Collect real roots in ascending order.
     float real_roots[4];
@@ -128,9 +131,49 @@ BHR_HD HitInfo integrate_geokerr(GeodesicState s, float a, const Conserved& c,
         real_roots[j + 1] = key;
     }
 
-    const float r_horizon = horizon_radius(a);
-    const float u_cam     = 1.0f / fmaxf(s.r, 1e-6f);
-    const float u_horizon = 1.0f / fmaxf(r_horizon, 1e-6f);
+    auto eval_U = [&](float u) -> float {
+        return ((((qc.a) * u + qc.b) * u + qc.c) * u + qc.d) * u + qc.e;
+    };
+
+    // Ferrari is useful for the analytic path, but float closed-form roots
+    // can be assigned a nonzero imaginary part near a physical radial turning
+    // point.  Event classification only needs the roots reachable from the
+    // camera, so recover those with bracketed bisection on [0, u_horizon].
+    // This is independent of the closed-form branch choice and cannot invent
+    // a root: every retained root has a sign change in U(u).
+    constexpr int kRadialRootBrackets = 128;
+    float physical_roots[4];
+    int n_physical_roots = 0;
+    float u_left = 0.0f;
+    float U_left = eval_U(u_left);
+    for (int i = 1; i <= kRadialRootBrackets && n_physical_roots < 4; ++i) {
+        const float u_right = u_horizon * (float)i / (float)kRadialRootBrackets;
+        const float U_right = eval_U(u_right);
+        if ((U_left < 0.0f && U_right > 0.0f) || (U_left > 0.0f && U_right < 0.0f)) {
+            float lo = u_left;
+            float hi = u_right;
+            float flo = U_left;
+            for (int it = 0; it < 28; ++it) {
+                const float mid = 0.5f * (lo + hi);
+                const float fmid = eval_U(mid);
+                if ((flo < 0.0f && fmid < 0.0f) || (flo > 0.0f && fmid > 0.0f)) {
+                    lo = mid;
+                    flo = fmid;
+                } else {
+                    hi = mid;
+                }
+            }
+            physical_roots[n_physical_roots++] = 0.5f * (lo + hi);
+        }
+        u_left = u_right;
+        U_left = U_right;
+    }
+    // Preserve the established Schwarzschild semi-analytic image path; this
+    // recovery targets the Kerr Ferrari branch that exhibited the failure.
+    if (a != 0.0f && n_physical_roots > 0) {
+        n_real = n_physical_roots;
+        for (int i = 0; i < n_real; ++i) real_roots[i] = physical_roots[i];
+    }
     // du/dlam = d(1/r)/dlam = -(dr/dlam)/r^2
     const float du_dlam_cam = -s.dr_dlam / (s.r * s.r);
 
@@ -267,10 +310,6 @@ BHR_HD HitInfo integrate_geokerr(GeodesicState s, float a, const Conserved& c,
             0.1246289712555339f, 0.0951585116824928f,
             0.0622535239386479f, 0.0271524594117541f
         };
-        auto eval_U = [&](float u) -> float {
-            return ((((qc.a) * u + qc.b) * u + qc.c) * u + qc.d) * u + qc.e;
-        };
-
         // Detect endpoint singularity: U(endpoint) << U(interior) means GL diverges.
         // This happens when the endpoint is a radial turning point (root of U).
         const float U_h_val = eval_U(h);

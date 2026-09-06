@@ -5,8 +5,7 @@ ImGui workbench. Both applications use the same render kernel.
 
 **0.9.0-rc.1 is a development release candidate, not a published v1.0.** RK45
 is the reference/default integrator. Geokerr is an experimental approximate
-alternative with a retained off-axis ray-classification failure; see
-[validation](docs/VALIDATION.md).
+alternative; see [validation](docs/VALIDATION.md) for its validation scope.
 
 ![Real Linux CUDA/OpenGL workbench capture](docs/gallery/workbench.png)
 
@@ -200,16 +199,14 @@ cmake --workflow --preset cpu-ci
 
 The full suite adds real CUDA rendering, golden/PSNR gates, CLI processes,
 starfield ownership, and optional CUDA/OpenGL presentation. Current local status
-is documented in [Validation](docs/VALIDATION.md). One retained off-axis
-dual-integrator test fails; skipped presentation is reported as skipped, not a GPU
-pass.
+is documented in [Validation](docs/VALIDATION.md). Skipped presentation is
+reported as skipped, not a GPU pass.
 
 GitHub Actions definitions are prepared locally:
 
 - `cpu-contracts.yml` runs the CUDA-free suite on hosted Ubuntu.
 - `gpu-validation.yml` is manual and requires labeled self-hosted NVIDIA and
-  NVIDIA/OpenGL runners. It does not assume hosted runners have a GPU/display,
-  and its package upload is unreachable while the retained physics gate fails.
+  NVIDIA/OpenGL runners. It does not assume hosted runners have a GPU/display.
 
 The action revisions are pinned by immutable commit SHA. No runner, secret,
 external workflow, tag, or release has been created as part of this candidate.
@@ -233,9 +230,9 @@ numbers are in [benchmarks](benchmarks/README.md).
 
 ## Known limitations
 
-- Geokerr approximates radial integration/inversion, disk crossings, and escape
-  directions. Historical agreement is about 27/18 dB and one 9-ray off-axis
-  classification test remains red. It is not exact physics.
+- Geokerr remains approximate: radial inversion and disk/escape locations can
+  differ from RK45 even where the validated hit classification agrees. It is
+  not an exact physics mode.
 - Disk emission is simplified; blackbody RGB clamps above 40000 K. The diagnostic
   redshift/Doppler split and beaming approximation are documented in
   [`redshift.hpp`](lib/include/bhr/redshift.hpp).

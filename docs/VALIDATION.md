@@ -18,30 +18,34 @@ glibc releases or non-sm_86 GPUs.
 | Surface | Command | Hardware | Current local result |
 |---|---|---|---|
 | CPU contracts | `cmake --workflow --preset cpu-ci` | CPU only | 45/45 passed |
-| CUDA headless | `ctest --test-dir BUILD --output-on-failure -LE presentation` | NVIDIA CUDA GPU | One retained off-axis dual-integrator failure |
+| CUDA headless | `ctest --test-dir BUILD --output-on-failure -LE presentation` | NVIDIA CUDA GPU | 74/74 passed |
 | CUDA/OpenGL | `BUILD/tests/bhr_viewport_tests` | NVIDIA GPU + OpenGL 3.3 display | Passed locally |
 | Install | `ctest --test-dir BUILD -R install_smoke --output-on-failure` | NVIDIA CUDA runtime | Passed locally |
 | Package | `cpack --config BUILD/CPackConfig.cmake` | Build host | Local TGZ and SHA-256 generated |
 
 The full CUDA GUI suite contains 75 registered tests after Plan 6 additions:
-74 pass and the retained off-axis physics test fails. The headless suite has
-74 registered tests: 73 pass and the same test fails. Artifact checksums are
+all 75 pass. The headless suite has 74 registered tests and all 74 pass. Artifact checksums are
 recorded in the Plan 6 handoff because embedding a checksum inside its own
 archive would be circular.
 
-## Retained physics gate
+## Off-axis physics repair
 
-The exact axial Schwarzschild radial failure is fixed without changing the
-golden PNG or established PSNR values. One off-axis test still fails: RK45 and
-geokerr agree on 5 of 9 sampled rays. The approximate geokerr radial inversion,
-disk-crossing choice, and escape direction need a larger geodesic redesign.
-The test is not skipped, weakened, or allow-listed. This blocks a claim that the
-physics suite is fully validated and blocks a v1.0 release claim.
+The exact axial Schwarzschild radial failure remains fixed. The nine off-axis
+Kerr rays now have explicit independently checked classifications; both
+integrators pass them without skips, tolerances, or allow-lists.
+
+The repair has two causes. RK45 now reflects Kerr polar coordinates at a chart
+boundary rather than integrating through theta=0 or pi, and guards a false
+inward-branch reversal only inside 1.5 horizon radii. Geokerr now brackets
+sign-changing radial roots in the physically reachable interval before event
+ordering; float Ferrari roots could otherwise acquire an imaginary component
+and conceal a real turning point. The Schwarzschild path is intentionally left
+unchanged to preserve its golden byte stream.
 
 The unchanged image gates are:
 
 - Schwarzschild RK45/geokerr PSNR: 27.0318 dB, threshold 25 dB.
-- Kerr spin 0.9 PSNR: 18.1293 dB, threshold 15 dB.
+- Kerr spin 0.9 PSNR: 29.7607 dB, threshold 15 dB.
 - Schwarzschild golden PNG: byte-identical.
 
 ## CI interpretation

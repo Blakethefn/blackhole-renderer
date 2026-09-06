@@ -162,6 +162,31 @@ __host__ __device__ HitInfo integrate_rk45(GeodesicState s, float a, const Conse
         GeodesicState s_new = y5;
         lam += h;
 
+        // theta is a polar coordinate.  A geodesic reaching theta=0 or pi
+        // turns in the physical polar potential; continuing the coordinate
+        // through the chart boundary suppresses the later equatorial event.
+        // Reflect both the coordinate and its Mino-time velocity so the next
+        // step remains on the same physical branch.
+        constexpr float pi = 3.14159265358979323846f;
+        if (a != 0.0f) {
+            if (s_new.theta < 0.0f) {
+                s_new.theta = -s_new.theta;
+                s_new.dth_dlam = -s_new.dth_dlam;
+            } else if (s_new.theta > pi) {
+                s_new.theta = 2.0f * pi - s_new.theta;
+                s_new.dth_dlam = -s_new.dth_dlam;
+            }
+        }
+
+        // Near the Boyer-Lindquist horizon, dt/dlambda is ill-conditioned and
+        // an accepted stage can falsely reverse an otherwise inward branch.
+        // Limit this guard to the near-horizon chart singularity; radial
+        // turning points farther out are physical and must remain free to
+        // reverse as dictated by R(r).
+        if (a != 0.0f && s.r < 1.5f * rp && s.dr_dlam < 0.0f && s_new.dr_dlam > 0.0f) {
+            s_new.dr_dlam = -sqrtf(fmaxf(potential_R(s_new.r, a, c), 0.0f));
+        }
+
         const float half_pi = 1.5707963267948966f;
         const float diff_prev = prev_th - half_pi;
         const float diff_new  = s_new.theta - half_pi;

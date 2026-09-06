@@ -23,14 +23,14 @@ C++ SDK/ABI.
 - [x] TGZ package and SHA-256 checksum are generated and verified locally.
 - [x] Golden PNG and existing image PSNR thresholds remain unchanged.
 - [x] Exact Schwarzschild center-ray classification is repaired.
-- [ ] All retained dual-integrator ray classifications pass.
+- [x] All retained dual-integrator ray classifications pass.
 - [ ] CUDA sanitizer completes an instrumented run.
 - [ ] GitHub hosted CPU workflow is observed after publication.
 - [ ] Self-hosted CUDA and CUDA/OpenGL workflows are configured and observed.
 - [ ] Windows and macOS are implemented and tested (not current targets).
 
-Because a physics gate remains red, this candidate is useful for testing and
-handoff but does **not** meet a fully validated v1.0 release gate.
+The ray-classification physics gate is green. CUDA sanitizer completion and the
+configured CI runs remain required before claiming a fully validated v1.0.
 
 ## Local packaging
 
