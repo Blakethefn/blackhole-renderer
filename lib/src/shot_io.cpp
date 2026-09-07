@@ -1,4 +1,5 @@
 #include "bhr/shot.hpp"
+#include "bhr/appearance.hpp"
 #include "preset_json.hpp"
 #include <cerrno>
 #include <cstdio>
@@ -137,9 +138,7 @@ private:
     std::string path_;
     FILE* stream_ = nullptr;
 };
-} // namespace
-
-CinematicDocument parse_cinematic(const std::string& contents) {
+Json parse_root(const std::string& contents) {
     if (contents.size() > kMaxCinematicBytes) throw std::runtime_error("Cinematic JSON must be at most 1 MiB");
     // The JSON lexer treats a raw NUL as EOF; strict documents must not accept
     // an otherwise valid prefix followed by NUL and unparsed trailing bytes.
@@ -153,10 +152,13 @@ CinematicDocument parse_cinematic(const std::string& contents) {
         if (event == Json::parse_event_t::object_end) keys.pop_back();
         return true;
     };
-    const auto json = Json::parse(contents, structure);
-    fields(json, {"format", "schema_version", "scene", "shots"});
+    return Json::parse(contents, structure);
+}
+CinematicDocument document_from_json(const Json& json, int version) {
+    if (version == 1) fields(json, {"format", "schema_version", "scene", "shots"});
+    else fields(json, {"format", "schema_version", "scene", "shots", "appearance"});
     if (string(json.at("format"), "format") != "bhr.cinematic") throw std::runtime_error("Expected format bhr.cinematic");
-    if (integer(json.at("schema_version"), UINT32_MAX, "schema_version") != kCinematicVersion)
+    if (integer(json.at("schema_version"), UINT32_MAX, "schema_version") != static_cast<uint64_t>(version))
         throw std::runtime_error("Unsupported cinematic schema version");
     const auto& scene = json.at("scene");
     fields(scene, {"preset"}, {"starfield_exr"});
@@ -175,7 +177,7 @@ CinematicDocument parse_cinematic(const std::string& contents) {
     validate_cinematic(document);
     return document;
 }
-std::string serialize_cinematic(const CinematicDocument& document) {
+Json document_json(const CinematicDocument& document) {
     validate_cinematic(document);
     Json scene = {{"preset", detail::preset_to_json(document.scene.preset)}};
     if (document.scene.starfield_exr) scene["starfield_exr"] = *document.scene.starfield_exr;
@@ -188,11 +190,14 @@ std::string serialize_cinematic(const CinematicDocument& document) {
         shots.push_back(value);
     }
     const Json json = {{"format", "bhr.cinematic"}, {"schema_version", kCinematicVersion}, {"scene", scene}, {"shots", shots}};
+    return json;
+}
+std::string formatted(const Json& json) {
     const auto contents = json.dump(2) + '\n';
     if (contents.size() > kMaxCinematicBytes) throw std::runtime_error("Cinematic JSON must be at most 1 MiB");
     return contents;
 }
-CinematicDocument load_cinematic(const std::filesystem::path& path) {
+std::string read_document(const std::filesystem::path& path) {
     check_path(path);
     std::ifstream input(path, std::ios::binary);
     if (!input) throw std::runtime_error("Cannot open cinematic document: " + path.string());
@@ -201,12 +206,72 @@ CinematicDocument load_cinematic(const std::filesystem::path& path) {
     input.read(contents.data(), static_cast<std::streamsize>(contents.size()));
     if (input.bad()) throw std::runtime_error("Cannot read cinematic document: " + path.string());
     contents.resize(static_cast<size_t>(input.gcount()));
-    return parse_cinematic(contents);
+    return contents;
 }
+} // namespace
+
+CinematicDocument parse_cinematic(const std::string& contents) { return document_from_json(parse_root(contents),1); }
+std::string serialize_cinematic(const CinematicDocument& document) { return formatted(document_json(document)); }
+CinematicDocument load_cinematic(const std::filesystem::path& path) { return parse_cinematic(read_document(path)); }
 void save_cinematic(const CinematicDocument& document, const std::filesystem::path& path) {
     check_path(path);
     const auto contents = serialize_cinematic(document);
     TemporaryFile temporary(path);
     temporary.replace(contents, path);
+}
+
+namespace {
+AppearanceV1 appearance_from_json(const Json& j) {
+    fields(j, {"schema_version","working_space","radiance_model","temperature_scale",
+        "disk_detail","outer_fade_fraction","star_intensity","exposure_ev","tone_map","output_transfer","bloom"});
+    if (integer(j.at("schema_version"),UINT32_MAX,"appearance version") != 1)
+        throw std::runtime_error("Unsupported appearance version");
+    for (const auto& pair : {std::pair{"working_space","linear-srgb-d65"},
+            {"radiance_model","relative-disk-v1"}, {"tone_map","reinhard-rgb-v1"}, {"output_transfer","srgb"}}) {
+        if (string(j.at(pair.first),pair.first) != pair.second)
+            throw std::runtime_error(std::string("Unsupported appearance ") + pair.first);
+    }
+    const auto& b=j.at("bloom"); fields(b,{"enabled","strength","threshold"});
+    if (!b.at("enabled").is_boolean()) throw std::runtime_error("bloom.enabled must be boolean");
+    const AppearanceV1 a{number(j.at("temperature_scale")),number(j.at("disk_detail")),
+        number(j.at("outer_fade_fraction")),number(j.at("star_intensity")),number(j.at("exposure_ev")),
+        {b.at("enabled").get<bool>(),number(b.at("strength")),number(b.at("threshold"))}};
+    validate_appearance(a);
+    return a;
+}
+Json appearance_json(const AppearanceV1& a) {
+    validate_appearance(a);
+    return {{"schema_version",1},{"working_space","linear-srgb-d65"},{"radiance_model","relative-disk-v1"},
+        {"temperature_scale",a.temperature_scale},{"disk_detail",a.disk_detail},{"outer_fade_fraction",a.outer_fade_fraction},
+        {"star_intensity",a.star_intensity},{"exposure_ev",a.exposure_ev},{"tone_map","reinhard-rgb-v1"},
+        {"output_transfer","srgb"},{"bloom",{{"enabled",a.bloom.enabled},{"strength",a.bloom.strength},{"threshold",a.bloom.threshold}}}};
+}
+CinematicRenderDocument v2_from_json(const Json& j) {
+    const auto doc=document_from_json(j,2);
+    return upgrade_cinematic(doc,appearance_from_json(j.at("appearance")));
+}
+}
+CinematicRenderDocument parse_cinematic_v2(const std::string& contents) { return v2_from_json(parse_root(contents)); }
+RenderDocument parse_render_document(const std::string& contents) {
+    const auto j=parse_root(contents);
+    const auto version=integer(j.at("schema_version"),UINT32_MAX,"schema_version");
+    if (version == 1) return document_from_json(j,1);
+    if (version == 2) return v2_from_json(j);
+    throw std::runtime_error("Unsupported cinematic schema version");
+}
+std::string serialize_cinematic_v2(const CinematicRenderDocument& doc) {
+    (void)upgrade_cinematic(doc.scene_shots,doc.appearance);
+    auto j=document_json(doc.scene_shots);
+    j["schema_version"]=2;
+    j["appearance"]=appearance_json(doc.appearance);
+    return formatted(j);
+}
+CinematicRenderDocument load_cinematic_v2(const std::filesystem::path& path) { return parse_cinematic_v2(read_document(path)); }
+RenderDocument load_render_document(const std::filesystem::path& path) { return parse_render_document(read_document(path)); }
+void save_cinematic_v2(const CinematicRenderDocument& doc, const std::filesystem::path& path) {
+    check_path(path);
+    const auto contents=serialize_cinematic_v2(doc);
+    TemporaryFile temporary(path);
+    temporary.replace(contents,path);
 }
 } // namespace bhr

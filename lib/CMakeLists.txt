@@ -1,6 +1,7 @@
 if(NOT BHR_ENABLE_CUDA)
     add_library(bhr_cpu_support STATIC
-        src/image.cpp
+        src/appearance.cpp
+    src/image.cpp
         src/presets.cpp
         src/shot.cpp
         src/shot_io.cpp
@@ -13,6 +14,7 @@ endif()
 
 add_library(libblackhole STATIC
     src/hello.cu
+    src/appearance.cpp
     src/image.cpp
     src/geodesic_rk45.cu
     src/geodesic_geokerr.cu

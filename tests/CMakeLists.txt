@@ -1,6 +1,7 @@
 # Hosted CI compiles and runs this subset without a CUDA toolkit or GPU.
 if(NOT BHR_ENABLE_CUDA)
     add_executable(bhr_cpu_tests
+        unit/test_appearance.cpp
         unit/test_main.cpp
         unit/test_blackbody.cpp
         unit/test_cli_options.cpp
@@ -29,6 +30,7 @@ endif()
 
 # CUDA suite aggregating unit and integration tests.
 add_executable(bhr_tests
+    unit/test_appearance.cpp
     unit/test_main.cpp
     unit/test_hello.cpp
     unit/test_interop.cpp
