@@ -1,0 +1,4 @@
+Shot orbit frame=300 time=300/60 s (5.000000000) duration=600/60 s (10.000000000)
+Emission loop phase=120/180 (metadata only; static emission)
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=81.5 deg, azimuth=180.025 deg, fov=35.0 deg, r_cam=32.5 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-review/baselines/orbit-300.png
+Done in 0.181s -> /home/blakethefn/.cache/blackhole-renderer/plan8-review/baselines/orbit-300.png

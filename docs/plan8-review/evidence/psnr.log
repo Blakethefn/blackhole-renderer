@@ -1,0 +1,18 @@
+[doctest] doctest version is "2.4.11"
+[doctest] run with "--help" for options
+===============================================================================
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_psnr.cpp:35:
+TEST CASE:  Dual integrator: Schwarzschild PSNR >= 25 dB
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_psnr.cpp:56: MESSAGE: Schwarzschild dual-integrator PSNR = 27.0318 dB
+
+===============================================================================
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_psnr.cpp:60:
+TEST CASE:  Dual integrator: Kerr a=0.9 PSNR >= 15 dB
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_psnr.cpp:81: MESSAGE: Kerr a=0.9 dual-integrator PSNR = 29.7607 dB
+
+===============================================================================
+[doctest] test cases: 2 | 2 passed | 0 failed | 80 skipped
+[doctest] assertions: 6 | 6 passed | 0 failed |
+[doctest] Status: SUCCESS!

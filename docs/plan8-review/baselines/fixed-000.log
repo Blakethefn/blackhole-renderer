@@ -1,0 +1,4 @@
+Shot fixed frame=0 time=0/60 s (0.000000000) duration=180/60 s (3.000000000)
+Emission loop phase=0/180 (metadata only; static emission)
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=85.0 deg, azimuth=0.000 deg, fov=35.0 deg, r_cam=30.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-review/baselines/fixed-000.png
+Done in 0.227s -> /home/blakethefn/.cache/blackhole-renderer/plan8-review/baselines/fixed-000.png

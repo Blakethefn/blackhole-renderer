@@ -1,0 +1,119 @@
+Internal ctest changing into directory: /home/blakethefn/.cache/blackhole-renderer/plan8-cpu
+Test project /home/blakethefn/.cache/blackhole-renderer/plan8-cpu
+      Start  1: Blackbody reference temperatures
+ 1/55 Test  #1: Blackbody reference temperatures ................................................   Passed    0.00 sec
+      Start  2: Blackbody clamping below 1000K and above 40000K
+ 2/55 Test  #2: Blackbody clamping below 1000K and above 40000K .................................   Passed    0.00 sec
+      Start  3: CLI float options require a whole finite numeric value
+ 3/55 Test  #3: CLI float options require a whole finite numeric value ..........................   Passed    0.00 sec
+      Start  4: CLI integer options reject truncation overflow and suffixes
+ 4/55 Test  #4: CLI integer options reject truncation overflow and suffixes .....................   Passed    0.00 sec
+      Start  5: CLI resolutions require exactly two positive integers
+ 5/55 Test  #5: CLI resolutions require exactly two positive integers ...........................   Passed    0.00 sec
+      Start  6: CLI integrator names are explicit
+ 6/55 Test  #6: CLI integrator names are explicit ...............................................   Passed    0.00 sec
+      Start  7: Disk temperature goes to 0 at inner edge and peaks near r_in * 1.36
+ 7/55 Test  #7: Disk temperature goes to 0 at inner edge and peaks near r_in * 1.36 .............   Passed    0.00 sec
+      Start  8: Keplerian angular velocity at large r matches Newtonian limit
+ 8/55 Test  #8: Keplerian angular velocity at large r matches Newtonian limit ...................   Passed    0.00 sec
+      Start  9: Disk 4-velocity is timelike (u^t > 0) at valid radii
+ 9/55 Test  #9: Disk 4-velocity is timelike (u^t > 0) at valid radii ............................   Passed    0.00 sec
+      Start 10: Carlson R_F reference values
+10/55 Test #10: Carlson R_F reference values ....................................................   Passed    0.00 sec
+      Start 11: Carlson R_D reference values
+11/55 Test #11: Carlson R_D reference values ....................................................   Passed    0.00 sec
+      Start 12: Carlson R_J reference values
+12/55 Test #12: Carlson R_J reference values ....................................................   Passed    0.00 sec
+      Start 13: Carlson R_F duplication is numerically stable near zero
+13/55 Test #13: Carlson R_F duplication is numerically stable near zero .........................   Passed    0.00 sec
+      Start 14: Ferrari: (u-1)(u-2)(u-3)(u-4)
+14/55 Test #14: Ferrari: (u-1)(u-2)(u-3)(u-4) ...................................................   Passed    0.00 sec
+      Start 15: Ferrari: two real, one complex pair (u-1)(u+2)(u^2 + u + 1)
+15/55 Test #15: Ferrari: two real, one complex pair (u-1)(u+2)(u^2 + u + 1) .....................   Passed    0.00 sec
+      Start 16: Ferrari: biquadratic (u^2 - 1)(u^2 - 4) = u^4 - 5u^2 + 4
+16/55 Test #16: Ferrari: biquadratic (u^2 - 1)(u^2 - 4) = u^4 - 5u^2 + 4 ........................   Passed    0.00 sec
+      Start 17: Ferrari: cubic degeneracy (a=0 falls back to cubic)
+17/55 Test #17: Ferrari: cubic degeneracy (a=0 falls back to cubic) .............................   Passed    0.00 sec
+      Start 18: Image default-constructs empty
+18/55 Test #18: Image default-constructs empty ..................................................   Passed    0.00 sec
+      Start 19: Image::allocate sets size and zeroes memory
+19/55 Test #19: Image::allocate sets size and zeroes memory .....................................   Passed    0.00 sec
+      Start 20: Image::set_pixel writes RGBA at coord
+20/55 Test #20: Image::set_pixel writes RGBA at coord ...........................................   Passed    0.00 sec
+      Start 21: write_png produces a valid PNG file
+21/55 Test #21: write_png produces a valid PNG file .............................................   Passed    0.00 sec
+      Start 22: horizon_radius at known spins
+22/55 Test #22: horizon_radius at known spins ...................................................   Passed    0.00 sec
+      Start 23: r_isco at known spins
+23/55 Test #23: r_isco at known spins ...........................................................   Passed    0.00 sec
+      Start 24: Sigma and Delta at sample points
+24/55 Test #24: Sigma and Delta at sample points ................................................   Passed    0.00 sec
+      Start 25: Schwarzschild (a=0) collapses correctly
+25/55 Test #25: Schwarzschild (a=0) collapses correctly .........................................   Passed    0.00 sec
+      Start 26: RenderParams defaults match design spec
+26/55 Test #26: RenderParams defaults match design spec .........................................   Passed    0.00 sec
+      Start 27: RenderParams default integrator is RK45
+27/55 Test #27: RenderParams default integrator is RK45 .........................................   Passed    0.00 sec
+      Start 28: Parameter validation accepts defaults and existing golden scenes
+28/55 Test #28: Parameter validation accepts defaults and existing golden scenes ................   Passed    0.00 sec
+      Start 29: Parameter validation rejects every nonfinite scene scalar
+29/55 Test #29: Parameter validation rejects every nonfinite scene scalar .......................   Passed    0.00 sec
+      Start 30: Parameter validation rejects unsupported physical and image ranges
+30/55 Test #30: Parameter validation rejects unsupported physical and image ranges ..............   Passed    0.00 sec
+      Start 31: workbench preset is a valid deterministic RK45 preview
+31/55 Test #31: workbench preset is a valid deterministic RK45 preview ..........................   Passed    0.00 sec
+      Start 32: committed gallery presets are valid prograde RK45 scenes
+32/55 Test #32: committed gallery presets are valid prograde RK45 scenes ........................   Passed    0.00 sec
+      Start 33: presets round trip every render field without changing floats
+33/55 Test #33: presets round trip every render field without changing floats ...................   Passed    0.00 sec
+      Start 34: preset loading rejects invalid schema and leaves active parameters untouched
+34/55 Test #34: preset loading rejects invalid schema and leaves active parameters untouched ....   Passed    0.00 sec
+      Start 35: invalid preset save preserves existing file and reports an error
+35/55 Test #35: invalid preset save preserves existing file and reports an error ................   Passed    0.00 sec
+      Start 36: preset file failures are reported without altering parameters
+36/55 Test #36: preset file failures are reported without altering parameters ...................   Passed    0.00 sec
+      Start 37: Redshift at large radius with zero angular momentum approaches 1
+37/55 Test #37: Redshift at large radius with zero angular momentum approaches 1 ................   Passed    0.00 sec
+      Start 38: Redshift of disk emitter at r=10 (Schwarzschild) is < 1
+38/55 Test #38: Redshift of disk emitter at r=10 (Schwarzschild) is < 1 .........................   Passed    0.00 sec
+      Start 39: Doppler asymmetry: prograde photon blueshifted vs retrograde
+39/55 Test #39: Doppler asymmetry: prograde photon blueshifted vs retrograde ....................   Passed    0.00 sec
+      Start 40: Frequency switches preserve total shift and separate diagnostic factors
+40/55 Test #40: Frequency switches preserve total shift and separate diagnostic factors .........   Passed    0.00 sec
+      Start 41: shot fixed clock has exact rational time and separate loop metadata
+41/55 Test #41: shot fixed clock has exact rational time and separate loop metadata .............   Passed    0.00 sec
+      Start 42: shot rational FPS is evaluated from frame index without accumulation
+42/55 Test #42: shot rational FPS is evaluated from frame index without accumulation ............   Passed    0.00 sec
+      Start 43: shot orbit reaches endpoints uses smoothstep and never wraps progress
+43/55 Test #43: shot orbit reaches endpoints uses smoothstep and never wraps progress ...........   Passed    0.00 sec
+      Start 44: shot validation rejects invalid clocks poses dimensions IDs and assets
+44/55 Test #44: shot validation rejects invalid clocks poses dimensions IDs and assets ..........   Passed    0.00 sec
+      Start 45: shot CLI selection is complete unique and incompatible with legacy options
+45/55 Test #45: shot CLI selection is complete unique and incompatible with legacy options ......   Passed    0.00 sec
+      Start 46: shot persistence round trips both cameras and imports every v1 field
+46/55 Test #46: shot persistence round trips both cameras and imports every v1 field ............   Passed    0.00 sec
+      Start 47: shot JSON rejects coercions unknown fields duplicate keys and limits
+47/55 Test #47: shot JSON rejects coercions unknown fields duplicate keys and limits ............   Passed    0.00 sec
+      Start 48: shot file errors preserve source and prior destination atomically
+48/55 Test #48: shot file errors preserve source and prior destination atomically ...............   Passed    0.00 sec
+      Start 49: shot EXR references resolve from document directory and require real assets
+49/55 Test #49: shot EXR references resolve from document directory and require real assets .....   Passed    0.00 sec
+      Start 50: shot interrupted write preserves existing document and removes temporary file
+50/55 Test #50: shot interrupted write preserves existing document and removes temporary file ...   Passed    0.00 sec
+      Start 51: workbench submits once and keeps changes made during a render
+51/55 Test #51: workbench submits once and keeps changes made during a render ...................   Passed    0.00 sec
+      Start 52: workbench rejects invalid edits and needs an explicit retry after failure
+52/55 Test #52: workbench rejects invalid edits and needs an explicit retry after failure .......   Passed    0.00 sec
+      Start 53: workbench UI visibility does not invalidate a completed scene
+53/55 Test #53: workbench UI visibility does not invalidate a completed scene ...................   Passed    0.00 sec
+      Start 54: workbench failed update preserves the last completed snapshot
+54/55 Test #54: workbench failed update preserves the last completed snapshot ...................   Passed    0.00 sec
+      Start 55: workbench requires the asset requested by a preset before dispatch
+55/55 Test #55: workbench requires the asset requested by a preset before dispatch ..............   Passed    0.00 sec
+
+100% tests passed, 0 tests failed out of 55
+
+Label Time Summary:
+cpu    =   0.07 sec*proc (55 tests)
+
+Total Test time (real) =   0.08 sec

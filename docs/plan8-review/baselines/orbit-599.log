@@ -1,0 +1,4 @@
+Shot orbit frame=599 time=599/60 s (9.983333333) duration=600/60 s (10.000000000)
+Emission loop phase=59/180 (metadata only; static emission)
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=88.0 deg, azimuth=190.000 deg, fov=35.0 deg, r_cam=25.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-review/baselines/orbit-599.png
+Done in 0.229s -> /home/blakethefn/.cache/blackhole-renderer/plan8-review/baselines/orbit-599.png

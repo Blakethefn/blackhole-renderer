@@ -1,0 +1,65 @@
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=88.0 deg, azimuth=0.000 deg, fov=40.0 deg, r_cam=55.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-09-88.png
+Done in 0.134s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-09-88.png
+Rendering 1920x1080, integrator=rk45, spin=0.600, incl=88.0 deg, azimuth=0.000 deg, fov=40.0 deg, r_cam=55.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-1080.png
+Done in 0.116s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-1080.png
+Rendering 1024x576, integrator=rk45, spin=0.600, incl=88.0 deg, azimuth=0.000 deg, fov=40.0 deg, r_cam=55.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-88.png
+Done in 0.096s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-88.png
+Rendering 1024x576, integrator=rk45, spin=0.600, incl=85.0 deg, azimuth=0.000 deg, fov=40.0 deg, r_cam=55.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-amber.png
+Done in 0.101s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-amber.png
+Rendering 1024x576, integrator=rk45, spin=0.600, incl=85.0 deg, azimuth=0.000 deg, fov=40.0 deg, r_cam=55.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-cool.png
+Done in 0.105s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-cool.png
+Rendering 1024x576, integrator=rk45, spin=0.600, incl=85.0 deg, azimuth=0.000 deg, fov=40.0 deg, r_cam=55.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-warm.png
+Done in 0.093s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/composition-warm.png
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=60.0 deg, azimuth=0.000 deg, fov=35.0 deg, r_cam=30.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/incl-60.png
+Done in 0.224s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/incl-60.png
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=75.0 deg, azimuth=0.000 deg, fov=35.0 deg, r_cam=30.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/incl-75.png
+Done in 0.220s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/incl-75.png
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=85.0 deg, azimuth=0.000 deg, fov=35.0 deg, r_cam=30.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/incl-85.png
+Done in 0.221s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/incl-85.png
+Rendering 1024x576, integrator=rk45, spin=0.000, incl=85.0 deg, azimuth=0.000 deg, fov=35.0 deg, r_cam=30.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/spin-0-incl-85.png
+Done in 0.095s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/spin-0-incl-85.png
+Rendering 1024x576, integrator=rk45, spin=0.990, incl=85.0 deg, azimuth=0.000 deg, fov=35.0 deg, r_cam=30.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/spin-099-incl-85.png
+Done in 0.099s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/spin-099-incl-85.png
+Shot fixed frame=0 time=0/60 s (0.000000000) duration=180/60 s (3.000000000)
+Emission loop phase=0/180 (metadata only; static emission)
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=85.0 deg, azimuth=0.000 deg, fov=35.0 deg, r_cam=30.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/fixed-000.png
+Done in 0.217s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/fixed-000.png
+Shot orbit frame=0 time=0/60 s (0.000000000) duration=600/60 s (10.000000000)
+Emission loop phase=0/180 (metadata only; static emission)
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=75.0 deg, azimuth=170.000 deg, fov=35.0 deg, r_cam=40.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/orbit-000.png
+Done in 0.094s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/orbit-000.png
+Shot orbit frame=300 time=300/60 s (5.000000000) duration=600/60 s (10.000000000)
+Emission loop phase=120/180 (metadata only; static emission)
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=81.5 deg, azimuth=180.025 deg, fov=35.0 deg, r_cam=32.5 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/orbit-300.png
+Done in 0.180s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/orbit-300.png
+Shot orbit frame=599 time=599/60 s (9.983333333) duration=600/60 s (10.000000000)
+Emission loop phase=59/180 (metadata only; static emission)
+Rendering 1024x576, integrator=rk45, spin=0.900, incl=88.0 deg, azimuth=190.000 deg, fov=35.0 deg, r_cam=25.0 M -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/orbit-599.png
+Done in 0.223s -> /home/blakethefn/.cache/blackhole-renderer/plan8-reproduce/orbit-599.png
+baselines/composition-09-88.json: OK
+baselines/composition-09-88.png: OK
+baselines/composition-1080.json: OK
+baselines/composition-1080.png: OK
+baselines/composition-88.json: OK
+baselines/composition-88.png: OK
+baselines/composition-amber.json: OK
+baselines/composition-amber.png: OK
+baselines/composition-cool.json: OK
+baselines/composition-cool.png: OK
+baselines/composition-warm.json: OK
+baselines/composition-warm.png: OK
+baselines/fixed-000.png: OK
+baselines/incl-60.json: OK
+baselines/incl-60.png: OK
+baselines/incl-75.json: OK
+baselines/incl-75.png: OK
+baselines/incl-85.json: OK
+baselines/incl-85.png: OK
+baselines/orbit-000.png: OK
+baselines/orbit-300.png: OK
+baselines/orbit-599.png: OK
+baselines/reference-shots-1024.json: OK
+baselines/spin-0-incl-85.json: OK
+baselines/spin-0-incl-85.png: OK
+baselines/spin-099-incl-85.json: OK
+baselines/spin-099-incl-85.png: OK

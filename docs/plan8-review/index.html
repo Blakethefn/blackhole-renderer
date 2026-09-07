@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan 8 · Cinematic appearance review</title>
+<link rel="icon" href="data:,">
+<style>
+  :root { color-scheme: dark; font: 16px/1.55 system-ui, sans-serif; background: #0c1017; color: #e6e8ee; }
+  body { max-width: 1280px; margin: auto; padding: 32px; }
+  h1 { font-size: clamp(28px,4vw,46px); line-height: 1.1; margin: 12px 0; }
+  h2 { font-size: 23px; margin: 30px 0 12px; }
+  h3 { font-size: 17px; margin: 0 0 8px; }
+  p { margin: 8px 0; } a { color: #b8d8ff; } small, .muted { color: #aeb8c8; }
+  .tag { color: #f5d199; font-size: 12px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+  .grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  figure { margin: 0; background: #171d27; border: 1px solid #303a4b; border-radius: 8px; overflow: hidden; }
+  figure img { display: block; width: 100%; object-fit: contain; background: #030507; }
+  .refs img { height: 235px; } figcaption { padding: 14px; }
+  .callout { padding: 18px; border-left: 3px solid #edbf7a; background: #1e232a; margin: 18px 0; }
+  .swatches { display: flex; height: 70px; margin: 12px 0; } .swatches span { flex: 1; }
+  .palette { padding: 18px; background: #171d27; border: 1px solid #303a4b; border-radius: 8px; }
+  button, select { background: #283444; color: white; border: 1px solid #5e748b; padding: 9px 12px; border-radius: 5px; font: inherit; }
+  button { cursor: pointer; } .controls { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+  code { font-size: 13px; } .note { font-size: 14px; }
+  footer { margin-top: 30px; border-top: 1px solid #303a4b; padding-top: 16px; }
+  @media(max-width:800px) { body {padding:16px} .grid,.pair {grid-template-columns:1fr} }
+</style>
+<header>
+  <div class="tag">Plan 8 · Design review · 6 September 2026 · acceptance pending</div>
+  <h1>A warm disk, a dark shadow,<br>room for the stars.</h1>
+  <p>Proposed direction: ivory highlights, amber lanes, sparse stars and restrained optical glow.</p>
+  <p class="muted">Source baseline: abc3d21. Production implementation starts after design acceptance.</p>
+</header>
+
+<h2>01 · Visual references</h2>
+<div class="grid refs">
+  <figure>
+    <a href="https://www.dneg.com/our-work/interstellar"><img alt="DNEG Interstellar film still showing a luminous lensed disk behind a spacecraft" src="https://images.ctfassets.net/3sjsytt3tkv5/67syrcvzlq5pXuEnNtpKtr/2bc0c740e74a5c40b783365baeade329/Interstellar_-_VFX_Still_4.jpeg?w=1280"></a>
+    <figcaption><h3>Ivory emission & optical glow</h3><p class="note">DNEG / Interstellar. Borrow the highlight character; use substantially less veiling glow. The planet and spacecraft are outside scope.</p><a href="https://arxiv.org/pdf/1502.03808#page=28">Exact disk reference: Fig. 16, p. 28 →</a></figcaption>
+  </figure>
+  <figure>
+    <a href="https://svs.gsfc.nasa.gov/13326/"><img alt="NASA black hole visualization with curved bright and dark lanes and a dark central shadow" src="https://svs.gsfc.nasa.gov/vis/a010000/a013300/a013326/Black_Hole_Accretion_Disk_Sim_4k_ProRes.00386_print.jpg"></a>
+    <figcaption><h3>Readable curved disk lanes</h3><p class="note">NASA Goddard / Jeremy Schnittman. Use the organization of light and dark detail; keep our warmer ivory grade and existing ray geometry.</p><a href="https://svs.gsfc.nasa.gov/13326/">Source & full credits →</a></figcaption>
+  </figure>
+  <div class="palette">
+    <div class="tag">Proposed palette · design swatches</div>
+    <div class="swatches" aria-label="Palette: near black, muted amber, pale gold, warm ivory"><span style="background:#030507"></span><span style="background:#aa7542"></span><span style="background:#e6bb7d"></span><span style="background:#fff2da"></span></div>
+    <h3>Warm ivory / amber</h3>
+    <p class="note">Fixed +1 EV starting exposure. Preserve brightness asymmetry. Detail limited to ±18%; outer 10% emission taper.</p>
+    <p class="note">Sparse, original stars. Bloom begins off; then test a .06-strength highlight glow. No frame-dependent exposure.</p>
+    <p class="muted note">These are taste swatches, not measured renderer output or a finished cinematic preview.</p>
+  </div>
+</div>
+
+<h2>02 · Actual renderer evidence</h2>
+<p class="muted">Unedited PNGs from the rebuilt legacy RK45 renderer. Select an inclination to inspect the baseline.</p>
+<div class="controls"><label for="baseline">Inclination </label><select id="baseline"><option value="85">85° · original composition</option><option value="75">75°</option><option value="60">60°</option></select></div>
+<div class="pair">
+  <figure><a id="baseline-link" href="baselines/incl-85.png"><img id="baseline-image" src="baselines/incl-85.png" alt="Actual legacy RK45 baseline at 85 degrees"></a><figcaption><h3>Current reference · spin .9</h3><p class="note">r=30 M / vertical FOV 35° / 40000 K. Cropped outer disk, smooth gray-blue emission, no stars or glow.</p><p class="note" id="diagnostics">3 magenta unknown-hit pixels at 85°; inspect full size.</p></figcaption></figure>
+  <figure><a href="baselines/composition-1080.png"><img src="baselines/composition-88.png" alt="Actual legacy renderer composition proof with a thin amber disk at 88 degrees"></a><figcaption><h3>Recommended framing · spin .6</h3><p class="note">r=55 M / 88° / vertical FOV 40°. Disk spans about 63% of the frame. This legacy 6000 K sample establishes composition and warmth.</p><p class="note">No cinematic pipeline, stars, new detail or bloom yet. Boundary speckling remains. <a href="baselines/composition-1080.png">Inspect actual 1080p →</a></p></figcaption></figure>
+</div>
+<div class="callout"><strong>What the new pipeline must add</strong><p>Linear emission before byte conversion; explicit sRGB encoding; static detail at ray-derived disk coordinates; sparse lensed stars; controlled glow. Keep the dark shadow and inspect every result with bloom off.</p><p class="note">The film's appearance includes artistic departures. Our recommendation retains Doppler/redshift/beaming. Existing ray gates remain authoritative; unresolved pixels stay diagnostic.</p></div>
+
+<h2>03 · Morphology & selected-frame checks</h2>
+<div class="grid">
+  <figure><a href="baselines/spin-0-incl-85.png"><img src="baselines/spin-0-incl-85.png" alt="Actual Schwarzschild baseline"></a><figcaption>Spin 0 · 85° · inner radius 6 M</figcaption></figure>
+  <figure><a href="baselines/spin-099-incl-85.png"><img src="baselines/spin-099-incl-85.png" alt="Actual high-spin Kerr baseline"></a><figcaption>Spin .99 · 85° · inner radius 1.455 M</figcaption></figure>
+  <figure><a id="orbit-link" href="baselines/orbit-300.png"><img id="orbit-image" src="baselines/orbit-300.png" alt="Actual selected orbit frame 300"></a><figcaption><label for="orbit">Selected orbit frame </label><select id="orbit"><option>300</option><option>000</option><option>599</option></select><p class="note">Plan 7 camera evaluation, static emission. These are selected stills, not an animation.</p></figcaption></figure>
+</div>
+
+<h2>04 · Concrete design to approve</h2>
+<div class="pair">
+  <div class="palette"><h3>Color & compatibility</h3><p>Float32 linear sRGB/D65, relative radiance, opaque alpha. Fixed exposure → optional bloom → Reinhard RGB → sRGB bytes.</p><p>New cinematic v2 carries appearance v1. Existing cinematic v1, presets, CLI behavior and renderer bypass stay exact.</p></div>
+  <div class="palette"><h3>Bounded implementation</h3><p>A: contract/schema/color fixtures. B: linear shading and shared display. C: static lanes/stars, then optional bloom.</p><p>1080p budget: 93.31 MiB steady GUI image resources. Legacy timing measured at 146.639 ms GPU/frame; cinematic costs still require measurement.</p></div>
+</div>
+<footer>
+  <p><a href="../CINEMATIC_APPEARANCE_PROPOSAL.md">Full proposal: API, schema, equations, budgets, tests & asset rights</a> · <a href="README.md">Commands and evidence</a> · <a href="SHA256SUMS">Checksums</a></p>
+  <p class="note">Fresh unchanged baseline: CPU 55/55 · headless 85/85 · GUI 86/86, including presentation. Final cinematic visual acceptance is a later gate.</p>
+  <p class="note muted">Reference images load from their original external hosts; an offline reader can still inspect all local renderer baselines. External references are not bundled runtime assets. Fig. 16: James et al., Classical and Quantum Gravity 32 (2015) 065001, DOI 10.1088/0264-9381/32/6/065001; © Warner Bros., CC BY-NC-ND 3.0 as stated in its caption. No publication authorized.</p>
+</footer>
+<script>
+document.querySelector('#baseline').addEventListener('change', event => {
+  const value = event.target.value;
+  if (!['60','75','85'].includes(value)) return;
+  const path = `baselines/incl-${value}.png`;
+  document.querySelector('#baseline-image').src = path;
+  document.querySelector('#baseline-image').alt = `Actual legacy RK45 baseline at ${value} degrees`;
+  document.querySelector('#baseline-link').href = path;
+  const count = {'60':0,'75':2,'85':3}[value];
+  document.querySelector('#diagnostics').textContent = `${count} magenta unknown-hit pixels at ${value}°; inspect full size.`;
+});
+document.querySelector('#orbit').addEventListener('change', event => {
+  const value = event.target.value;
+  if (!['000','300','599'].includes(value)) return;
+  const path = `baselines/orbit-${value}.png`;
+  document.querySelector('#orbit-image').src = path;
+  document.querySelector('#orbit-image').alt = `Actual selected orbit frame ${value}`;
+  document.querySelector('#orbit-link').href = path;
+});
+</script>
+</html>
