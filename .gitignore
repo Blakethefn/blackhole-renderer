@@ -49,6 +49,9 @@ presets/user/
 .superpowers/
 docs/superpowers/
 
+# Local documentation checkout
+docs/
+
 # Local planning context and implementation brief for Astra
 /.astra/
 
