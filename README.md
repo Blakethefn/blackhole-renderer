@@ -9,6 +9,92 @@ alternative; see [validation](docs/VALIDATION.md) for its validation scope.
 
 ![Real Linux CUDA/OpenGL workbench capture](docs/gallery/workbench.png)
 
+## Mathematical core
+
+The renderer uses geometrized units, with \(G=c=M=1\). The dimensionless spin
+\(a\) is prograde and bounded below the extremal limit. In Boyer--Lindquist
+coordinates, the Kerr helper quantities are
+
+$$
+\Sigma = r^2 + a^2\cos^2\theta,\qquad
+\Delta = r^2 - 2r + a^2,\qquad
+A = (r^2+a^2)^2-a^2\Delta\sin^2\theta .
+$$
+
+The outer horizon and prograde innermost stable circular orbit (ISCO) are
+
+$$
+r_+ = 1+\sqrt{1-a^2},
+$$
+
+$$
+\begin{aligned}
+Z_1 &= 1+(1-a^2)^{1/3}\left[(1+a)^{1/3}+(1-a)^{1/3}\right],\\
+Z_2 &= \sqrt{3a^2+Z_1^2},\\
+r_{\mathrm{ISCO}} &= 3+Z_2-\sqrt{(3-Z_1)(3+Z_1+2Z_2)} .
+\end{aligned}
+$$
+
+For each camera ray, the conserved photon quantities \(E\), \(L_z\), and
+the Carter constant \(Q\) define the radial and polar potentials
+
+$$
+P = E(r^2+a^2)-aL_z,
+$$
+
+$$
+R(r)=P^2-\Delta\left[(L_z-aE)^2+Q\right],\qquad
+\Theta(\theta)=Q+\cos^2\theta\left(a^2E^2-\frac{L_z^2}{\sin^2\theta}\right).
+$$
+
+The reference RK45 integrator advances the equivalent second-order Mino-time
+system
+
+$$
+\left(\frac{dr}{d\lambda}\right)^2=R,\qquad
+\left(\frac{d\theta}{d\lambda}\right)^2=\Theta,\qquad
+\frac{d^2r}{d\lambda^2}=\frac12\frac{dR}{dr},\qquad
+\frac{d^2\theta}{d\lambda^2}=\frac12\frac{d\Theta}{d\theta}.
+$$
+
+The optional Geokerr backend uses semi-analytic radial and polar calculations,
+but its radial inversion and radial integrals remain approximate. A disk hit is
+shaded with a normalized thin-disk temperature profile and Keplerian orbital
+motion:
+
+$$
+T(r)=\frac{T_{\mathrm{peak}}}{0.4886}
+\left(\frac{r_{\mathrm{in}}}{r}\right)^{3/4}
+\left[1-\sqrt{\frac{r_{\mathrm{in}}}{r}}\right]^{1/4},\qquad r>r_{\mathrm{in}},
+$$
+
+$$
+\Omega=\frac{1}{r^{3/2}+a},\qquad
+u^t=\left[-g_{tt}-2\Omega g_{t\phi}-\Omega^2g_{\phi\phi}\right]^{-1/2},
+\qquad u^\phi=\Omega u^t.
+$$
+
+For an observer at infinity, the emitted-to-observed frequency factor is
+
+$$
+g=\frac{E}{Eu^t-L_z u^\phi},\qquad
+T_{\mathrm{obs}}=gT_{\mathrm{emit}},\qquad
+I_{\mathrm{beam}}\propto g^4.
+$$
+
+The cinematic path stores linear relative radiance, applies exposure and
+optional bloom, then uses per-channel Reinhard mapping and one sRGB transfer:
+
+$$
+L'_c = 2^{\mathrm{EV}}L_c + B_c,\qquad
+H_c=\frac{L'_c}{1+L'_c},\qquad
+\mathrm{byte}_c=\left\lfloor255\,s_{\mathrm{RGB}}(H_c)+\tfrac12\right\rfloor .
+$$
+
+These equations describe the implemented contracts; the renderer's artistic
+emission and finite-escape-sky choices are documented in the
+[cinematic appearance contract](docs/CINEMATIC_APPEARANCE.md).
+
 ## Quick start
 
 The supported target is Linux x86_64 with an NVIDIA GPU. A source build needs:
