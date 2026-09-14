@@ -25,7 +25,7 @@ CinematicSizes cinematic_sizes(int w, int h) {
     const size_t bloom=static_cast<size_t>(bw)*bh*16;
     // Radiance/status, PBO plus three textures during resize, two bloom buffers,
     // and the capped 2048x1024-equivalent sky allocation. Checked before allocation.
-    const size_t budget=n*33 + bloom*2 + 32*1024*1024;
+    const size_t budget=n*33 + bloom*2 + 32*1024*1024 + 32; // status padding/counters
     if (budget > kCinematicResourceBudget)
         throw std::runtime_error("Cinematic image resources exceed the 256 MiB budget");
     return {w,h,bw,bh,n,n*16,n*4,n,bloom,budget};

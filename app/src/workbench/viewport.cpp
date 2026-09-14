@@ -4,6 +4,7 @@
 #include <cuda_gl_interop.h>
 
 #include "bhr/renderer.hpp"
+#include "bhr/cinematic_renderer.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -68,6 +69,8 @@ struct Viewport::Impl {
     std::uint64_t completions = 0;
     Clock::time_point submitted{};
     std::string message;
+    std::unique_ptr<CinematicBuffer> cinematic;
+    bool cinematic_pending = false;
 
     bool fail(const std::string& reason) {
         if (phase == Phase::failed && !message.empty()) message += "; " + reason;
@@ -106,6 +109,10 @@ struct Viewport::Impl {
     // Only used after GPU ownership has returned, or during settled teardown.
     bool release_target() {
         if (mapped || upload_fence) return fail("Cannot release a presentation target still in use");
+        if (cinematic) {
+            if (!cinematic->close()) return fail("Release cinematic workspace failed");
+            cinematic.reset();
+        }
         if (resource) {
             if (!cuda_ok(cudaGraphicsUnregisterResource(resource), "Unregister presentation buffer")) return false;
             resource = nullptr;
@@ -166,16 +173,36 @@ struct Viewport::Impl {
         return true;
     }
 
-    bool submit(const RenderParams& params, const Starfield& starfield) {
+    bool submit(const RenderParams& params, const Starfield& starfield,
+                const AppearanceV1* appearance = nullptr) {
         if (phase != Phase::idle) return false;
         if (const char* reason = validation_error(params)) {
             message = reason;
             return false;
         }
+        if (appearance) {
+            try {
+                validate_cinematic_request({params,*appearance});
+                const auto sizes=cinematic_sizes(params.camera.width,params.camera.height);
+                const size_t retained=static_cast<size_t>(displayed_width)*displayed_height*4;
+                if(retained>sizes.rgba_bytes && sizes.budget_bytes+retained-sizes.rgba_bytes>kCinematicResourceBudget)
+                    throw std::runtime_error("Cinematic resize with retained preview exceeds the 256 MiB budget");
+            }
+            catch (const std::exception& error) { message=error.what();return false; }
+            if (params.enable_starfield && (!starfield.is_valid() || starfield.width<=0 || starfield.height<=0
+                || starfield.width>2048 || static_cast<size_t>(starfield.width)*starfield.height>2*1024*1024)) {
+                message="Cinematic scene requires a valid bounded linear sRGB starfield";return false;
+            }
+        }
         message.clear();
         submitted = Clock::now();
         if (!gl_ok("OpenGL state before render")) return false;
         if (!initialize() || !resize(params.camera.width, params.camera.height)) return false;
+        if (appearance && !cinematic) {
+            try { cinematic=std::make_unique<CinematicBuffer>(params.camera.width,params.camera.height); }
+            catch (const std::exception& error) { return fail(error.what()); }
+        }
+        cinematic_pending=appearance!=nullptr;
         if (!cuda_ok(cudaGraphicsMapResources(1, &resource, stream), "Map presentation buffer")) return false;
         mapped = true;
         void* pixels = nullptr;
@@ -183,8 +210,12 @@ struct Viewport::Impl {
         if (!cuda_ok(cudaGraphicsResourceGetMappedPointer(&pixels, &capacity_bytes, resource),
                       "Get mapped presentation buffer")) return false;
         if (!cuda_ok(cudaEventRecord(render_start, stream), "Record render start")) return false;
-        if (!cuda_ok(render_device(params, starfield, static_cast<uchar4*>(pixels), capacity_bytes, stream),
+        const auto launch=appearance
+            ? render_cinematic_device({params,*appearance},starfield,cinematic->target(),static_cast<uchar4*>(pixels),capacity_bytes,stream)
+            : render_device(params,starfield,static_cast<uchar4*>(pixels),capacity_bytes,stream);
+        if (!cuda_ok(launch,
                       "Launch black-hole render")) return false;
+        if (appearance && !cuda_ok(cinematic->read_diagnostics_async(stream),"Read cinematic diagnostics")) return false;
         if (!cuda_ok(cudaEventRecord(render_end, stream), "Record render completion")) return false;
         phase = Phase::rendering;
         return true;
@@ -195,6 +226,8 @@ struct Viewport::Impl {
             const auto status = cudaEventQuery(render_end);
             if (status == cudaErrorNotReady) return false;
             if (!cuda_ok(status, "Complete black-hole render")) return false;
+            if (cinematic_pending && cinematic->diagnostics().invalid)
+                return fail("Cinematic shading produced invalid radiance; previous image retained");
             if (!cuda_ok(cudaEventElapsedTime(&pending_gpu_ms, render_start, render_end),
                           "Measure render time")) return false;
             // The event is complete before unmap: do not make the UI wait for
@@ -310,6 +343,12 @@ bool Viewport::poll() {
     const bool completed = impl_->poll();
     if (!already_failed && impl_->phase == Impl::Phase::failed) impl_->cleanup_failure();
     return completed;
+}
+bool Viewport::submit(const CinematicRequest& request, const Starfield& starfield) {
+    const bool already_failed=impl_->phase==Impl::Phase::failed;
+    const bool accepted=impl_->submit(request.params,starfield,&request.appearance);
+    if (!already_failed && impl_->phase==Impl::Phase::failed) impl_->cleanup_failure();
+    return accepted;
 }
 bool Viewport::busy() const noexcept {
     return impl_->phase == Impl::Phase::rendering || impl_->phase == Impl::Phase::unmapping

@@ -126,6 +126,45 @@ existing home cache was used. Static emission, POSIX atomic-save scope without
 power-loss durability, and no cross-device bitwise guarantee remain limitations.
 No video, cache, cinematic shading or GUI authoring is implemented here.
 
+## Plan 8 cinematic appearance — current evidence
+
+The following is implementation evidence, not final visual acceptance. The Plan 8
+design was approved on 2026-09-07; user acceptance of the resulting stills remains
+pending. Eleven actual CUDA RK45 captures, their saved v2 inputs, and exact ImGui
+sRGB-framebuffer readbacks are available in the [still review board](plan8-review/stills/index.html).
+All recorded captures have zero unknown, invalid, and clipped pixels; headless PNG
+bytes exactly equal the actual ImGui framebuffer readback. Presentation explicitly
+disables `GL_FRAMEBUFFER_SRGB` for the encoded-image draw and restores prior state.
+
+| Surface | Current result | Scope / interpretation |
+|---|---:|---|
+| CPU contracts | 61/61 passed | CUDA-free Plan 8 test run. |
+| CPU new-line coverage | 134/140 = **95.71%** (initial) | Final coverage report pending; neither value is project-wide or GPU coverage. |
+| CPU ASan/UBSan | 61/61 passed | Separate CUDA-free sanitizer build. |
+| Headless CUDA | 101/101 passed | Includes cinematic implementation checks; see `headless-implementation.log`. |
+| GUI CUDA/OpenGL | 102/102 passed | Includes actual presentation; see `gui-implementation.log`. |
+| Cinematic installed CLI / install smoke | Passed in headless and GUI builds | Confirms the installed selected-frame cinematic path. |
+| CUDA Compute Sanitizer | Unavailable (historic) | Tooling exited before instrumentation in earlier work; it was not rerun or repaired without authorization. |
+
+At 1920×1080, the evidence tool measured 20.0475 ms legacy GPU time, 20.1115 ms
+radiance (0.32% shading overhead), 0.0563 ms display, 0.0931 ms bloom, and 20.2475
+ms combined glow (two warmups, ten samples; RTX 3080 / CUDA 12.0.140 / driver
+595.58.03). This is a measurement of the selected scene, not a 60 FPS claim. The
+39,398,416-byte workspace, 8,294,400-byte RGBA target, and 33,554,432-byte sky are
+measured allocations. The 106,130,464-byte conservative GUI-resize budget separately
+accounts for concurrently retained preview resources; it is below the 268,435,456-byte
+hard request limit, not a live-allocation measurement. Process peak RSS was 210,288
+KiB.
+
+Known visual/physics limitations remain deliberate: bloom is reviewed disabled and
+does not conceal inner-boundary speckle; escape sampling is a finite BL-coordinate
+star environment; no ray bundles, thick-volume transport, spectral transport, or
+camera optics are modeled. RK45 remains the reference and Geokerr remains approximate.
+See [Cinematic appearance](CINEMATIC_APPEARANCE.md) for the exact contract and
+[measurement log](plan8-review/evidence/cinematic-measurements.log) for raw evidence.
+The final implementation-suite logs are [headless](plan8-review/evidence/headless-implementation.log),
+[GUI](plan8-review/evidence/gui-implementation.log), and [physics/image gates](plan8-review/evidence/physics-image-gates.log).
+
 ## CI interpretation
 
 `cpu-contracts.yml` runs on a standard Ubuntu hosted runner without CUDA.

@@ -7,6 +7,9 @@
 #include "backends/imgui_impl_sdl2.h"
 #include "backends/imgui_impl_opengl3.h"
 #include "workbench/ui_panels.hpp"
+#include "workbench/encoded_framebuffer.hpp"
+#include "bhr/cinematic_renderer.hpp"
+#include "shot_options.hpp"
 #include <cstdio>
 #include <exception>
 
@@ -84,7 +87,11 @@ bhr::workbench::State shortcut(const bhr::workbench::State& state, SDL_Keycode k
     return state;
 }
 
-int run() {
+int run(const std::optional<bhr::cli::ShotSelection>& selected) {
+    const auto loaded=selected?std::make_unique<bhr::RenderDocument>(bhr::load_render_document(selected->file)):nullptr;
+    const auto* cinematic=loaded?std::get_if<bhr::CinematicRenderDocument>(loaded.get()):nullptr;
+    const auto* document=loaded?(cinematic?&cinematic->scene_shots:&std::get<bhr::CinematicDocument>(*loaded)):nullptr;
+    const auto frame=document?std::make_unique<bhr::FrameSample>(bhr::evaluate_frame(*document,selected->id,selected->frame)):nullptr;
     Application application;
     if (!application.initialize()) {
         std::fprintf(stderr, "Workbench initialization failed: %s\n", SDL_GetError());
@@ -111,6 +118,18 @@ int run() {
     StarfieldOwner starfield; // Outlives all in-flight viewport work.
     Viewport viewport;
     State state{};
+    if(frame) {
+        state=changed(state,frame->params);
+        if(frame->params.enable_starfield) {
+            const auto path=bhr::resolve_starfield(document->scene,selected->file);
+            const bool ok=cinematic?bhr::load_cinematic_starfield(path,starfield.value)
+                :bhr::load_starfield(path,16384,starfield.value);
+            if(!ok) throw std::runtime_error("Cannot load selected frame starfield");
+        }
+        const std::string title="Black Hole Workbench — "+selected->id+" / frame "+std::to_string(selected->frame)
+            +(cinematic?" / cinematic":" / legacy");
+        SDL_SetWindowTitle(application.window,title.c_str());
+    }
     Controls controls{};
     bool running = true;
     while (running) {
@@ -121,7 +140,7 @@ int run() {
             if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_CLOSE
                 && event.window.windowID == SDL_GetWindowID(application.window)) running = false;
             if (event.type == SDL_KEYDOWN && event.key.repeat == 0) {
-                state = shortcut(state, event.key.keysym.sym);
+                if(!selected) state = shortcut(state, event.key.keysym.sym);
                 if (event.key.keysym.sym == SDLK_ESCAPE && !ImGui::GetIO().WantCaptureKeyboard) running = false;
             }
         }
@@ -136,12 +155,26 @@ int run() {
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplSDL2_NewFrame();
         ImGui::NewFrame();
-        draw_viewport(state, viewport);
-        state = draw_controls(state, controls, viewport, starfield.value, properties.name);
+        if(selected) {
+            if(viewport.has_image()) {
+                const auto size=ImGui::GetIO().DisplaySize;
+                const float scale=std::min(size.x/viewport.image_width(),size.y/viewport.image_height());
+                const ImVec2 extent(viewport.image_width()*scale,viewport.image_height()*scale);
+                const ImVec2 origin((size.x-extent.x)/2,(size.y-extent.y)/2);
+                ImGui::GetBackgroundDrawList()->AddImage(reinterpret_cast<ImTextureID>(static_cast<uintptr_t>(viewport.texture())),
+                    origin,ImVec2(origin.x+extent.x,origin.y+extent.y));
+            }
+            if(!state.error.empty()) {
+                ImGui::Begin("Selected frame error");ImGui::TextWrapped("%s",state.error.c_str());ImGui::End();
+            }
+        } else draw_viewport(state, viewport);
+        if(!selected) state = draw_controls(state, controls, viewport, starfield.value, properties.name);
         if (!state.rendering && state.params.enable_starfield && !starfield.value.is_valid())
             state = failed_render(state, "Load the preset's EXR starfield or disable starfield sampling.");
         if (can_submit(state, starfield.value.is_valid()) && !viewport.busy()) {
-            if (viewport.submit(state.params, starfield.value)) state = submitted(state);
+            const bool accepted=cinematic?viewport.submit(bhr::CinematicRequest{state.params,cinematic->appearance},starfield.value)
+                :viewport.submit(state.params,starfield.value);
+            if (accepted) state = submitted(state);
             else if (!viewport.error().empty()) state = failed_render(submitted(state), viewport.error());
         }
 
@@ -151,7 +184,10 @@ int run() {
         glViewport(0, 0, width, height);
         glClearColor(0.02f, 0.025f, 0.04f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        {
+            EncodedFramebuffer encoded;
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+        }
         SDL_GL_SwapWindow(application.window);
         if (SDL_GetWindowFlags(application.window) & SDL_WINDOW_MINIMIZED) SDL_Delay(16);
     }
@@ -160,8 +196,23 @@ int run() {
 }
 } // namespace
 
-int main(int, char**) {
-    try { return run(); }
+int main(int argc, char** argv) {
+    try {
+        std::vector<std::pair<std::string,std::string>> options;
+        for(int i=1;i<argc;++i) {
+            const std::string option=argv[i];
+            if(option=="--help"||option=="-h") {
+                std::puts("Usage: blackhole-workbench [--shot-file FILE --shot-id ID --frame INDEX]\nSelected frames are read-only; Escape closes the viewer.");return 0;
+            }
+            if(!bhr::cli::is_shot_option(option)) throw std::runtime_error("Unknown workbench option: "+option);
+            if(i+1>=argc) throw std::runtime_error("Missing value for "+option);
+            options.emplace_back(option,argv[++i]);
+        }
+        // Share the selected-frame validation with the CLI; the workbench has
+        // no file output, so satisfy that parser field with a private sentinel.
+        if(!options.empty()) options.emplace_back("--output","workbench");
+        return run(bhr::cli::shot_selection(options));
+    }
     catch (const std::exception& error) {
         std::fprintf(stderr, "Workbench failed: %s\n", error.what());
         return 1;

@@ -143,3 +143,17 @@ TEST_CASE("Starfield refuses to overwrite existing CUDA ownership") {
     CHECK(field.value.tex == texture);
     CHECK(field.value.d_array == array);
 }
+
+TEST_CASE("Cinematic sky bounds channels before decoding and loads the original asset") {
+    ExrFixture file;
+    save_fixture(file,{"B","G","R","A","extra"});
+    OwnedStarfield field;
+    CHECK_FALSE(bhr::load_cinematic_starfield(file.path.string(),field.value));
+    CHECK_FALSE(field.value.is_valid());
+    CHECK(field.value.d_array==nullptr);
+    REQUIRE(bhr::load_cinematic_starfield("presets/cinematic/assets/stars-v1.exr",field.value));
+    CHECK(field.value.width==2048);CHECK(field.value.height==1024);
+    const auto texture=field.value.tex;
+    CHECK_FALSE(bhr::load_cinematic_starfield(file.path.string(),field.value));
+    CHECK(field.value.tex==texture);
+}

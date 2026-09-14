@@ -1,0 +1,62 @@
+{
+  "appearance": {
+    "bloom": {
+      "enabled": true,
+      "strength": 0.05999999865889549,
+      "threshold": 1.0
+    },
+    "disk_detail": 0.18000000715255737,
+    "exposure_ev": 1.0,
+    "outer_fade_fraction": 0.10000000149011612,
+    "output_transfer": "srgb",
+    "radiance_model": "relative-disk-v1",
+    "schema_version": 1,
+    "star_intensity": 0.15000000596046448,
+    "temperature_scale": 0.15000000596046448,
+    "tone_map": "reinhard-rgb-v1",
+    "working_space": "linear-srgb-d65"
+  },
+  "format": "bhr.cinematic",
+  "scene": {
+    "preset": {
+      "camera": {
+        "fov_deg": 40.0,
+        "height": 576,
+        "phi_cam_deg": 0.0,
+        "r_cam": 55.0,
+        "theta_cam_deg": 85.0,
+        "width": 1024
+      },
+      "disk": {
+        "brightness": 1.0,
+        "peak_temp_K": 40000.0,
+        "r_inner": 1.4544975757598877,
+        "r_outer": 20.0
+      },
+      "enable_beaming": true,
+      "enable_doppler": true,
+      "enable_redshift": true,
+      "enable_starfield": true,
+      "integrator": "rk45",
+      "schema_version": 1,
+      "spin": 0.9900000095367432
+    },
+    "starfield_exr": "assets/stars-v1.exr"
+  },
+  "schema_version": 2,
+  "shots": [
+    {
+      "camera": {
+        "kind": "fixed"
+      },
+      "fps": {
+        "denominator": 1,
+        "numerator": 60
+      },
+      "frame_count": 1,
+      "height": 576,
+      "id": "fixed",
+      "width": 1024
+    }
+  ]
+}

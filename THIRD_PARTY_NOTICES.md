@@ -23,3 +23,11 @@ their vendored files. SDL's notice must remain with any separately redistributed
 SDL binary.
 
 The black-hole renderer itself remains licensed under [MIT](LICENSE).
+
+## Plan 8 authored asset
+
+`presets/cinematic/assets/stars-v1.exr` is an original deterministic sparse-star
+environment authored for this repository and distributed under this project's MIT
+license. It is not an external sky, film frame, NASA image, or downloaded runtime
+asset. The Plan 8 review-board references are editorial links only and are not bundled
+or used by the renderer.

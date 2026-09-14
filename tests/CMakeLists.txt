@@ -53,6 +53,7 @@ add_executable(bhr_tests
     unit/test_elliptic.cpp
     unit/test_ferrari.cpp
     unit/test_geokerr.cpp
+    integration/test_cinematic.cpp
     integration/test_golden_schwarzschild.cpp
     integration/test_dual_integrator_rays.cpp
     integration/test_dual_integrator_psnr.cpp
@@ -101,3 +102,9 @@ add_test(NAME shot_cli_contract COMMAND ${CMAKE_COMMAND}
     -DTEST_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/shot-cli-contract
     -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_shot_cli.cmake)
 set_tests_properties(shot_cli_contract PROPERTIES TIMEOUT 120 LABELS gpu)
+add_test(NAME cinematic_cli_contract COMMAND ${CMAKE_COMMAND}
+    -DCLI=$<TARGET_FILE:blackhole-cli>
+    -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+    -DTEST_OUTPUT_DIR=${CMAKE_CURRENT_BINARY_DIR}/cinematic-cli-contract
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/integration/test_cinematic_cli.cmake)
+set_tests_properties(cinematic_cli_contract PROPERTIES TIMEOUT 120 LABELS gpu)

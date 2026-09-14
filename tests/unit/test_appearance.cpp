@@ -1,11 +1,27 @@
 #include "doctest.h"
 #include "bhr/appearance.hpp"
 #include "bhr/display_transform.hpp"
+#include "bhr/disk_appearance.hpp"
 #include "bhr/presets.hpp"
+#include "bhr/image.hpp"
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <limits>
 #include <unistd.h>
+
+TEST_CASE("static disk appearance is bounded periodic and fades only the outer edge") {
+    constexpr float pi=3.14159265358979323846f;
+    CHECK(bhr::disk_appearance(10,0,4,20,0,0)==1);
+    CHECK(bhr::disk_appearance(20,0,4,20,.18f,.1f)==0);
+    CHECK(bhr::disk_appearance(19.2f,0,4,20,0,.1f)==doctest::Approx(.5).epsilon(1e-5));
+    CHECK(bhr::disk_appearance(4,0,4,20,0,.1f)==1);
+    for(int i=0;i<100;++i) {
+        const float r=4+.14f*i,phi=.13f*i;
+        const float x=bhr::disk_appearance(r,phi,4,20,.18f,0);
+        CHECK(x>=1.0f-.18f);CHECK(x<=1.0f+.18f);
+        CHECK(x==doctest::Approx(bhr::disk_appearance(r,phi+2*pi,4,20,.18f,0)).epsilon(1e-5));
+    }
+}
 
 TEST_CASE("cinematic display uses specified linear exposure and exactly one sRGB encoding") {
     CHECK(bhr::srgb_encode(0.0031308f) == doctest::Approx(0.040449936).epsilon(1e-6));
@@ -52,6 +68,13 @@ TEST_CASE("cinematic v2 explicitly upgrades while preserving strict v1 and frame
     CHECK_THROWS(bhr::cinematic_sizes(0,1));
     CHECK_THROWS(bhr::cinematic_sizes(-1,1));
     CHECK_THROWS(bhr::cinematic_sizes(16384,16384));
+    const auto params=bhr::workbench_preset();
+    CHECK_NOTHROW(bhr::validate_cinematic_request({params,{}}));
+    auto bad_params=params;bad_params.spin=-1;
+    CHECK_THROWS(bhr::validate_cinematic_request({bad_params,{}}));
+    CHECK_THROWS(bhr::validate_cinematic_request({params,{0}}));
+    bad_params=params;bad_params.camera.width=16384;bad_params.camera.height=16384;
+    CHECK_THROWS(bhr::validate_cinematic_request({bad_params,{}}));
 }
 
 TEST_CASE("appearance rejects malformed values transactionally and retains strict structure") {
@@ -114,4 +137,23 @@ TEST_CASE("cinematic v2 saves atomically and loads without changing source snaps
     CHECK_THROWS(bhr::load_render_document(dir));
     CHECK_THROWS(bhr::load_render_document({}));
     std::filesystem::remove_all(dir);
+}
+
+TEST_CASE("cinematic PNG declares sRGB and preserves destination on invalid input") {
+    const std::string path="/tmp/bhr-color-patch-"+std::to_string(getpid())+".png";
+    bhr::Image image; image.allocate(1,1); image.set_pixel(0,0,188,0,0);
+    REQUIRE(bhr::write_srgb_png(image,path));
+    const auto read=[&] { std::ifstream f(path,std::ios::binary);return std::string(std::istreambuf_iterator<char>(f),{}); };
+    const auto original=read();
+    REQUIRE(original.size()>46);
+    CHECK(original.substr(37,4)=="sRGB");
+    CHECK(static_cast<unsigned char>(original[41])==0);
+    // Independently known PNG sRGB/intent-0 CRC: AE CE 1C E9.
+    CHECK(original.substr(42,4)==std::string("\xae\xce\x1c\xe9",4));
+    CHECK_FALSE(bhr::write_srgb_png({},path));
+    CHECK(read()==original);
+    CHECK_FALSE(bhr::write_srgb_png(image,"/absent-bhr-directory/image.png"));
+    CHECK_FALSE(bhr::write_srgb_png(image,{}));
+    CHECK_FALSE(bhr::write_srgb_png({1,1,{1}},path));
+    std::filesystem::remove(path);
 }

@@ -31,6 +31,9 @@ endif()
 foreach(required_path
     "${BHR_INSTALL_PREFIX}/share/blackhole-renderer/presets/reference.json"
     "${BHR_INSTALL_PREFIX}/share/blackhole-renderer/presets/shots/reference.json"
+    "${BHR_INSTALL_PREFIX}/share/blackhole-renderer/presets/cinematic/scene.json"
+    "${BHR_INSTALL_PREFIX}/share/blackhole-renderer/presets/cinematic/assets/stars-v1.exr"
+    "${BHR_INSTALL_PREFIX}/share/doc/blackhole-renderer/CINEMATIC_APPEARANCE.md"
     "${BHR_INSTALL_PREFIX}/share/doc/blackhole-renderer/SHOTS.md"
     "${BHR_INSTALL_PREFIX}/share/doc/blackhole-renderer/README.md"
     "${BHR_INSTALL_PREFIX}/share/doc/blackhole-renderer/benchmarks/README.md"
@@ -40,6 +43,15 @@ foreach(required_path
     message(FATAL_ERROR "Installed candidate is missing ${required_path}")
   endif()
 endforeach()
+
+execute_process(
+  COMMAND "${BHR_INSTALLED_CLI}" --shot-file share/blackhole-renderer/presets/cinematic/scene.json
+    --shot-id fixed --frame 0 --output installed-cinematic.png
+  WORKING_DIRECTORY "${BHR_INSTALL_PREFIX}"
+  RESULT_VARIABLE cinematic_result ERROR_VARIABLE cinematic_error TIMEOUT 30)
+if(NOT cinematic_result EQUAL 0 OR NOT EXISTS "${BHR_INSTALL_PREFIX}/installed-cinematic.png")
+  message(FATAL_ERROR "Installed cinematic frame failed: ${cinematic_error}")
+endif()
 
 file(READ "${BHR_INSTALL_PREFIX}/share/doc/blackhole-renderer/README.md" installed_readme)
 if(NOT installed_readme MATCHES "## Quick start")

@@ -3,6 +3,8 @@ if(BHR_BUILD_APP)
 add_library(bhr_workbench_viewport STATIC src/workbench/viewport.cpp)
 target_include_directories(bhr_workbench_viewport PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(bhr_workbench_viewport PUBLIC bhr::lib bhr_glad OpenGL::GL)
+add_executable(cinematic-evidence EXCLUDE_FROM_ALL ../tools/cinematic_evidence.cpp)
+target_link_libraries(cinematic-evidence PRIVATE bhr_workbench_viewport bhr_imgui SDL2::SDL2)
 
 add_executable(blackhole-workbench
     src/main.cpp
@@ -32,6 +34,9 @@ set_target_properties(blackhole-preview-benchmark PROPERTIES
 endif()
 
 # The headless CLI remains available with BHR_BUILD_APP=OFF.
+add_executable(generate-cinematic-stars EXCLUDE_FROM_ALL ../tools/generate_cinematic_stars.cpp)
+target_link_libraries(generate-cinematic-stars PRIVATE bhr::lib)
+
 add_executable(blackhole-cli
     src/cli.cpp
 )

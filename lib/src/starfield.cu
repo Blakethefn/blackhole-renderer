@@ -31,7 +31,8 @@ void check_exr(int status, const char* error, const char* operation) {
     if (status != TINYEXR_SUCCESS) throw std::runtime_error(message);
 }
 
-std::vector<float4> decode(const std::string& path, int max_width, int& width, int& height) {
+std::vector<float4> decode(const std::string& path, int max_width, int& width, int& height,
+                           std::int64_t source_limit, size_t upload_limit, int channel_limit) {
     EXRVersion version{};
     if (ParseEXRVersionFromFile(&version, path.c_str()) != TINYEXR_SUCCESS)
         throw std::runtime_error("Cannot read EXR version");
@@ -44,8 +45,14 @@ std::vector<float4> decode(const std::string& path, int max_width, int& width, i
     const auto& header = data.header;
     const std::int64_t source_width = std::int64_t(header.data_window.max_x) - header.data_window.min_x + 1;
     const std::int64_t source_height = std::int64_t(header.data_window.max_y) - header.data_window.min_y + 1;
-    if (source_width <= 0 || source_height <= 0 || source_width > kMaxSourcePixels / source_height)
-        throw std::runtime_error("EXR dimensions must be positive and contain at most 128 million pixels");
+    if (source_width <= 0 || source_height <= 0 || source_width > source_limit / source_height)
+        throw std::runtime_error("EXR dimensions exceed the supported source pixel limit");
+    if (header.num_channels > channel_limit)
+        throw std::runtime_error("Cinematic EXR supports RGB with at most one extra channel");
+    const auto predicted_factor=std::max<std::int64_t>(1,(source_width+max_width-1)/max_width);
+    if (static_cast<size_t>((source_width+predicted_factor-1)/predicted_factor)
+        *static_cast<size_t>((source_height+predicted_factor-1)/predicted_factor)>upload_limit)
+        throw std::runtime_error("EXR dimensions exceed the upload pixel limit before decode");
     int red = -1, green = -1, blue = -1;
     for (int channel = 0; channel < header.num_channels; ++channel) {
         const auto& info = header.channels[channel];
@@ -80,6 +87,8 @@ std::vector<float4> decode(const std::string& path, int max_width, int& width, i
     const int factor = std::max(1, (image.width + max_width - 1) / max_width);
     width = (image.width + factor - 1) / factor;
     height = (image.height + factor - 1) / factor;
+    if (static_cast<size_t>(width)*height > upload_limit)
+        throw std::runtime_error("EXR dimensions exceed the upload pixel limit");
     std::vector<float4> output(static_cast<size_t>(width) * height);
     // Partial edge boxes preserve odd dimensions and one-pixel-high maps.
     // Accumulate in double so finite HDR float values cannot overflow the sum.
@@ -110,7 +119,8 @@ bool checked_cuda(cudaError_t status, const char* operation) {
 }
 } // namespace
 
-bool load_starfield(const std::string& path, int max_width, Starfield& out) {
+static bool load_impl(const std::string& path, int max_width, Starfield& out,
+                      std::int64_t source_limit, size_t upload_limit, int channel_limit) {
     if (out.tex || out.d_array) {
         std::fprintf(stderr, "Starfield output already owns GPU resources; release it before loading\n");
         return false;
@@ -121,7 +131,7 @@ bool load_starfield(const std::string& path, int max_width, Starfield& out) {
     }
     try {
         int width = 0, height = 0;
-        const auto pixels = decode(path, max_width, width, height);
+        const auto pixels = decode(path, max_width, width, height, source_limit, upload_limit,channel_limit);
         const auto desc = cudaCreateChannelDesc<float4>();
         if (!checked_cuda(cudaMallocArray(&out.d_array, &desc, width, height), "allocate array")) return false;
         const size_t pitch = static_cast<size_t>(width) * sizeof(float4);
@@ -150,6 +160,13 @@ bool load_starfield(const std::string& path, int max_width, Starfield& out) {
         std::fprintf(stderr, "Starfield load failed: %s\n", error.what());
         return false;
     }
+}
+
+bool load_starfield(const std::string& path, int max_width, Starfield& out) {
+    return load_impl(path,max_width,out,kMaxSourcePixels,static_cast<size_t>(kMaxSourcePixels),INT32_MAX);
+}
+bool load_cinematic_starfield(const std::string& path, Starfield& out) {
+    return load_impl(path,2048,out,8LL*1024*1024,2*1024*1024,4);
 }
 
 bool destroy_starfield(Starfield& sf) {

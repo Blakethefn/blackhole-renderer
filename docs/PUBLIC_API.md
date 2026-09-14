@@ -42,6 +42,38 @@ owns CUDA texture/array resources, is move-only, and accepts the limited EXR
 formats described in `bhr/starfield.hpp`. Callers must not replace or destroy a
 starfield while an asynchronous render that samples it is in flight.
 
+## Cinematic appearance v1 and render document v2
+
+`AppearanceV1` is immutable, validated appearance data. `CinematicRenderDocument`
+wraps an unchanged `CinematicDocument` with that appearance; strict
+`bhr.cinematic` v2 requires it. `parse_cinematic_v2`, `load_cinematic_v2`, and
+`save_cinematic_v2` handle v2 only. `upgrade_cinematic` explicitly returns a new
+v2 value; v1 parsing remains strict and invalid v2 never falls back to v1.
+`parse_render_document`/`load_render_document` dispatch a supported version while
+preserving the legacy v1 producer contract.
+
+`CinematicRequest` combines an evaluated immutable `RenderParams` snapshot with
+`AppearanceV1`. `CinematicDeviceTarget` is a caller-owned, 16-byte aligned CUDA
+workspace. `render_radiance_device`, `bloom_device`, `display_device`, and
+`render_cinematic_device` are allocation-free asynchronous operations ordered on one
+stream; they neither copy nor synchronize. The target, output RGBA8 storage,
+starfield, and stream must remain valid until completion. Shapes, capacities,
+alignment, overlap, assets, appearance ranges, and the 256 MiB request budget are
+validated before dispatch. `render_cinematic` is the blocking host-image wrapper and
+rejects an invalid-radiance frame rather than returning a partial image.
+
+The radiance target has packed top-left row-major `alignas(16) RadiancePixel`
+(`float R,G,B,A`, 16 bytes/pixel): nonnegative finite linear sRGB/Rec.709-primary,
+D65 relative artistic radiance in `[0, 65504]`, with opaque alpha exactly one.
+`PixelStatus` records valid, unknown, invalid, and clipped pixels. Unknown/invalid
+pixels display as diagnostic magenta and are excluded from bloom; clipping and invalid
+counts are exposed in `FrameDiagnostics`.
+
+`Viewport::submit(CinematicRequest, Starfield)` provides the corresponding workbench
+submission boundary. It retains the existing last-good image behavior. The ImGui image
+is drawn into an sRGB framebuffer with `GL_FRAMEBUFFER_SRGB` disabled for that draw
+and restored afterwards, preventing a second transfer encoding.
+
 ## Workbench boundary
 
 The workbench's `Viewport` owns the persistent mapped PBO, alternating OpenGL

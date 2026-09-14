@@ -1,17 +1,19 @@
-# Plan 8 appearance proposal — design review pending
+# Plan 8 appearance proposal — design approved; final visual acceptance pending
 
-Prepared 2026-09-06 against `abc3d21` / `bf07b1d`. **No production implementation or
-visual acceptance is recorded.** This is the first Plan 8 review gate, not its final
-still acceptance. Start with the [visual board](plan8-review/index.html).
+Prepared 2026-09-06 and approved for implementation on 2026-09-07. The approval is
+the design go-ahead for the bounded Plan 8 direction below; it is **not** final visual
+acceptance of the produced stills. That final gate remains pending while the selected
+frame / async presentation question awaits the user's answer. Start with the
+[historical design board](plan8-review/index.html) and the [actual still board](plan8-review/stills/index.html).
 
-## Decision requested
+## Approved design direction
 
-Approve one **warm ivory / amber** look: a nearly edge-on, centered disk spanning
+The approved direction is one **warm ivory / amber** look: a nearly edge-on, centered disk spanning
 about 63% of a 16:9 frame, readable static lanes, a dark shadow, sparse lensed stars,
 and a small highlight glow. Retain Doppler/redshift/beaming and the existing RK45
 geometry. The warm palette and glow are explicitly artistic approximations.
-Approve batches A–C below, including the bounded optional bloom design. Initial
-implementation and every morphology comparison will have bloom disabled.
+It authorizes batches A–C below, including the bounded optional bloom design. Initial
+implementation and every morphology comparison have bloom disabled.
 
 This approval does not accept the current smooth legacy images as the finished
 look. Final acceptance requires inspecting actual cinematic stills after implementation.
@@ -290,13 +292,15 @@ instrumentation honestly; do not install or repair tooling under this assignment
 Rebuilt unchanged `abc3d21` in new `plan8-{cpu,headless,gui}` directories. CPU Release
 55/55, headless 85/85, GUI 86/86 including actual presentation and install smoke pass.
 Legacy golden bytes and repaired ray/PSNR tests pass at unchanged thresholds.
-No new production surface exists yet: new coverage, CPU sanitizer rerun, cinematic
-parity, HDR/bloom costs and final visual acceptance remain pending implementation.
-See [reproduction and logs](plan8-review/README.md).
+This historical baseline predates the approved implementation. Current CPU coverage,
+CPU sanitizer rerun, cinematic parity, HDR/bloom costs, and actual captures are
+recorded in [Validation](VALIDATION.md) and the [still review board](plan8-review/stills/index.html).
+Final user visual acceptance remains pending. See [reproduction and logs](plan8-review/README.md).
 
 `build` and `imgui.ini` are preserved. The configured HDD mount is absent; small
 artifacts/builds use the existing home cache, and baseline review images are about
 3 MiB in the repository. No push, publication or Plans 9–14 work.
 
-Acceptance record: **pending**. Record the user's actual decision in the TaskVault
-task/output before production implementation; do not infer acceptance from silence.
+Design approval record: **approved 2026-09-07**. Final visual acceptance record:
+**pending**. Record the user's actual decision in the TaskVault task/output; do not
+infer it from silence.

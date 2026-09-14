@@ -24,6 +24,10 @@ struct Starfield {
 /// cleanup failure out retains partial ownership: call destroy_starfield to retry.
 bool load_starfield(const std::string& path, int max_width, Starfield& out);
 
+/// Cinematic-only limits: 8 Mi source pixels before decode, upload <=2 Mi pixels
+/// and width <=2048, at most four channels. Caller declares linear sRGB/D65 input.
+bool load_cinematic_starfield(const std::string& path, Starfield& out);
+
 /// Call after GPU work completes. Returns false on CUDA failure, logs a reason,
 /// and retains unreleased handles for retry. Empty destruction succeeds.
 bool destroy_starfield(Starfield& sf);

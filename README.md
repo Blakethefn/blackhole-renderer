@@ -132,6 +132,32 @@ smooth orbit shots. Render any selected frame with `--shot-file FILE --shot-id I
 --frame INDEX --output FILE.png`. See [scene/shot schema and examples](docs/SHOTS.md).
 Disk emission is static in this foundation; animation and video export are deferred.
 
+## Cinematic appearance (Plan 8)
+
+Plan 8 adds an additive cinematic v2 document and CUDA radiance/display path without
+changing legacy presets, cinematic v1 documents, or legacy rendering. It uses
+float32 linear-sRGB/D65 relative radiance, fixed exposure, optional bounded bloom,
+Reinhard RGB, and one sRGB encode into RGBA8. The bundled starfield is deterministic
+and original; no sky is downloaded at runtime. See the versioned [appearance
+contract](docs/CINEMATIC_APPEARANCE.md) and browse the [actual CUDA stills](docs/plan8-review/stills/index.html).
+
+Selected cinematic frames remain additive to the existing shot invocation:
+
+```bash
+"$BUILD/app/blackhole-cli" --shot-file presets/cinematic/scene.json \
+  --shot-id fixed --frame 0 --output cinematic.png
+```
+
+The workbench accepts the same selected-frame startup inputs:
+
+```bash
+"$BUILD/app/blackhole-workbench" --shot-file presets/cinematic/scene.json \
+  --shot-id orbit --frame 300
+```
+
+The design direction was approved on 2026-09-07. Final user visual acceptance is
+still pending; Plan 8 is not claimed complete.
+
 ## Workbench
 
 ```bash

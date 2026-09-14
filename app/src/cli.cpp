@@ -1,5 +1,6 @@
 // Headless renderer. Presets provide the base scene; explicit options override it.
 #include "bhr/renderer.hpp"
+#include "bhr/cinematic_renderer.hpp"
 #include "bhr/image.hpp"
 #include "bhr/presets.hpp"
 #include "bhr/starfield.hpp"
@@ -115,7 +116,9 @@ int run(int argc, char** argv) {
     }
 
     if (const auto selected = bhr::cli::shot_selection(options)) {
-        const auto document = bhr::load_cinematic(selected->file);
+        const auto loaded = bhr::load_render_document(selected->file);
+        const auto* cinematic = std::get_if<bhr::CinematicRenderDocument>(&loaded);
+        const auto& document = cinematic ? cinematic->scene_shots : std::get<bhr::CinematicDocument>(loaded);
         const auto frame = bhr::evaluate_frame(document, selected->id, selected->frame);
         const auto asset = bhr::resolve_starfield(document.scene, selected->file);
         std::fprintf(stderr, "Shot %s frame=%llu time=%llu/%llu s (%.9f) duration=%llu/%llu s (%.9f)\n",
@@ -126,6 +129,16 @@ int run(int argc, char** argv) {
         if (frame.loop_phase) std::fprintf(stderr, "Emission loop phase=%llu/%llu (metadata only; static emission)\n",
             static_cast<unsigned long long>(frame.loop_phase->numerator),
             static_cast<unsigned long long>(frame.loop_phase->denominator));
+        if (cinematic) {
+            StarfieldOwner starfield;
+            if (frame.params.enable_starfield && !bhr::load_cinematic_starfield(asset,starfield.value))
+                throw std::runtime_error("Cannot load cinematic linear sRGB starfield");
+            const auto result=bhr::render_cinematic({frame.params,cinematic->appearance},starfield.value);
+            std::fprintf(stderr,"Cinematic v2 / appearance v1: linear-srgb-d65 -> Reinhard -> sRGB; unknown=%u invalid=%u clipped=%u\n",
+                result.diagnostics.unknown,result.diagnostics.invalid,result.diagnostics.clipped);
+            if (!bhr::write_srgb_png(result.image,selected->output)) throw std::runtime_error("Cannot write cinematic PNG");
+            return 0;
+        }
         return render_one(frame.params, asset, selected->output);
     }
 

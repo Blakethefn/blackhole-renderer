@@ -24,5 +24,7 @@ struct Image {
 };
 
 bool write_png(const Image& img, const std::string& path);
+/// Encoded sRGB RGBA8 PNG with an explicit sRGB chunk and atomic replacement.
+bool write_srgb_png(const Image& img, const std::string& path);
 
 } // namespace bhr

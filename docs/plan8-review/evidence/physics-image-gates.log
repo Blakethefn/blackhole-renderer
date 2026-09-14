@@ -1,0 +1,67 @@
+[doctest] doctest version is "2.4.11"
+[doctest] run with "--help" for options
+===============================================================================
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_psnr.cpp:35:
+TEST CASE:  Dual integrator: Schwarzschild PSNR >= 25 dB
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_psnr.cpp:56: MESSAGE: Schwarzschild dual-integrator PSNR = 27.0318 dB
+
+===============================================================================
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_psnr.cpp:60:
+TEST CASE:  Dual integrator: Kerr a=0.9 PSNR >= 15 dB
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_psnr.cpp:81: MESSAGE: Kerr a=0.9 dual-integrator PSNR = 29.7607 dB
+
+===============================================================================
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:29:
+TEST CASE:  Dual integrator: off-axis rays match physical hit classifications
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:57: MESSAGE: px=(64,128) expected=2 RK45=2 r=6.63152 lambda=0.202909 Geo=2 r=6.56436 lambda=0.20521 roots=2
+  logged: sample.px := 64
+          sample.py := 128
+          (int)sample.expected := 2
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:57: MESSAGE: px=(128,64) expected=2 RK45=2 r=11.5576 lambda=0.393367 Geo=2 r=10.901 lambda=0.393367 roots=2
+  logged: sample.px := 128
+          sample.py := 64
+          (int)sample.expected := 2
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:57: MESSAGE: px=(128,128) expected=1 RK45=1 r=1.86785 lambda=0.681882 Geo=1 r=1.86603 lambda=0.515422 roots=2
+  logged: sample.px := 128
+          sample.py := 128
+          (int)sample.expected := 1
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:57: MESSAGE: px=(128,192) expected=2 RK45=2 r=14.6081 lambda=0.415868 Geo=2 r=13.4931 lambda=0.415868 roots=2
+  logged: sample.px := 128
+          sample.py := 192
+          (int)sample.expected := 2
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:57: MESSAGE: px=(192,128) expected=2 RK45=2 r=6.92492 lambda=0.202891 Geo=2 r=6.87127 lambda=0.20396 roots=2
+  logged: sample.px := 192
+          sample.py := 128
+          (int)sample.expected := 2
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:57: MESSAGE: px=(64,64) expected=3 RK45=3 r=1069.79 lambda=0.319051 Geo=3 r=1000 lambda=0.320725 roots=2
+  logged: sample.px := 64
+          sample.py := 64
+          (int)sample.expected := 3
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:57: MESSAGE: px=(64,192) expected=3 RK45=3 r=1069.65 lambda=0.31905 Geo=3 r=1000 lambda=0.320725 roots=2
+  logged: sample.px := 64
+          sample.py := 192
+          (int)sample.expected := 3
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:57: MESSAGE: px=(192,64) expected=3 RK45=3 r=1158.85 lambda=0.3106 Geo=3 r=1000 lambda=0.312077 roots=2
+  logged: sample.px := 192
+          sample.py := 64
+          (int)sample.expected := 3
+
+/media/blakethefn/500SSD1/Projects/blackhole-renderer/tests/integration/test_dual_integrator_rays.cpp:57: MESSAGE: px=(192,192) expected=3 RK45=3 r=1155.78 lambda=0.310598 Geo=3 r=1000 lambda=0.312077 roots=2
+  logged: sample.px := 192
+          sample.py := 192
+          (int)sample.expected := 3
+
+===============================================================================
+[doctest] test cases:  4 |  4 passed | 0 failed | 93 skipped
+[doctest] assertions: 38 | 38 passed | 0 failed |
+[doctest] Status: SUCCESS!

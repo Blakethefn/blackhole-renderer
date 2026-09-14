@@ -8,6 +8,7 @@
 #include "workbench/viewport.hpp"
 #include "bhr/image.hpp"
 #include "bhr/renderer.hpp"
+#include "bhr/cinematic_renderer.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -134,6 +135,30 @@ TEST_CASE("viewport shutdown releases resources while a render is in flight") {
     CHECK_FALSE(viewport.has_image());
     CHECK(glGetError() == GL_NO_ERROR);
     CHECK(cudaGetLastError() == cudaSuccess);
+}
+
+TEST_CASE("cinematic viewport matches headless bytes and retains completed image on rejection") {
+    const bhr::Starfield empty;
+    Viewport viewport;
+    auto p=small_scene();p.enable_starfield=false;
+    for(bool bloom:{false,true}) {
+        const bhr::CinematicRequest request{p,{.15f,.18f,.1f,.15f,1,{bloom,.06f,1}}};
+        const auto host=bhr::render_cinematic(request,empty);
+        REQUIRE(viewport.submit(request,empty));
+        CHECK_FALSE(viewport.submit(request,empty));
+        await_image(viewport);
+        CHECK(read_texture(viewport)==host.image.rgba);
+        const auto texture=viewport.texture();
+        CHECK_FALSE(viewport.submit(bhr::CinematicRequest{p,{0}},empty));
+        CHECK(viewport.texture()==texture);
+        CHECK(read_texture(viewport)==host.image.rgba);
+    }
+    p.camera.width=47;p.camera.height=29;
+    REQUIRE(viewport.submit(bhr::CinematicRequest{p,{}},empty));
+    await_image(viewport);
+    CHECK(read_texture(viewport)==bhr::render_cinematic({p,{}},empty).image.rgba);
+    REQUIRE(viewport.submit(bhr::CinematicRequest{p,{}},empty));
+    REQUIRE(viewport.shutdown());
 }
 
 TEST_CASE("viewport preserves the last image on a fatal graphics boundary error") {

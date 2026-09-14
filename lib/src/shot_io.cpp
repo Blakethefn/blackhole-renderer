@@ -274,4 +274,9 @@ void save_cinematic_v2(const CinematicRenderDocument& doc, const std::filesystem
     TemporaryFile temporary(path);
     temporary.replace(contents,path);
 }
+namespace detail {
+void atomic_write(const std::filesystem::path& path, const std::string& contents) {
+    check_path(path); TemporaryFile temporary(path); temporary.replace(contents,path);
+}
+}
 } // namespace bhr

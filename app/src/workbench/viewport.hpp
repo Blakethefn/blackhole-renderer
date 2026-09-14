@@ -2,6 +2,7 @@
 
 #include "bhr/params.hpp"
 #include "bhr/starfield.hpp"
+#include "bhr/appearance.hpp"
 
 #include <cstdint>
 #include <memory>
@@ -34,6 +35,7 @@ public:
     // False means busy, invalid input, or a reported fatal resource error.
     // Validation errors are recoverable on the next valid submission.
     bool submit(const RenderParams& params, const Starfield& starfield);
+    bool submit(const CinematicRequest& request, const Starfield& starfield);
     bool poll(); // true exactly when a newly completed image is published
 
     bool busy() const noexcept;
