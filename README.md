@@ -155,8 +155,8 @@ The workbench accepts the same selected-frame startup inputs:
   --shot-id orbit --frame 300
 ```
 
-The design direction was approved on 2026-09-07. Final user visual acceptance is
-still pending; Plan 8 is not claimed complete.
+The design direction was approved on 2026-09-07 and the user accepted the bloom-on
+fixed hero still on 2026-09-14. Plan 8 is complete; Plan 9 owns animated emission.
 
 ## Workbench
 

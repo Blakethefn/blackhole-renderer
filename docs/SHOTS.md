@@ -219,7 +219,7 @@ The original golden image, numerical classifications and 25/15 dB PSNR gates
 remain unchanged. See [validation](VALIDATION.md) for measured results.
 
 Plan 8 owns cinematic look/radiance; Plan 9 owns animated emission and its eventual
-seed contract. This foundation has no stochastic consumer or seed field. Shading,
+seed contract. Plan 8's bloom-on fixed still is the accepted hero. This foundation has no stochastic consumer or seed field. Shading,
 HDR/bloom, disk activity, sequences, caching, video encoding and GUI shot authoring
 are deferred. The workbench continues to use its existing v1 presets and controls.
 

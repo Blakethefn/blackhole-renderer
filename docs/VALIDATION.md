@@ -126,11 +126,10 @@ existing home cache was used. Static emission, POSIX atomic-save scope without
 power-loss durability, and no cross-device bitwise guarantee remain limitations.
 No video, cache, cinematic shading or GUI authoring is implemented here.
 
-## Plan 8 cinematic appearance — current evidence
+## Plan 8 cinematic appearance — accepted evidence
 
-The following is implementation evidence, not final visual acceptance. The Plan 8
-design was approved on 2026-09-07; user acceptance of the resulting stills remains
-pending. Eleven actual CUDA RK45 captures, their saved v2 inputs, and exact ImGui
+The Plan 8 design was approved on 2026-09-07 and the user accepted the bloom-on fixed
+hero still on 2026-09-14. Eleven actual CUDA RK45 captures, their saved v2 inputs, and exact ImGui
 sRGB-framebuffer readbacks are available in the [still review board](plan8-review/stills/index.html).
 All recorded captures have zero unknown, invalid, and clipped pixels; headless PNG
 bytes exactly equal the actual ImGui framebuffer readback. Presentation explicitly
@@ -156,8 +155,9 @@ accounts for concurrently retained preview resources; it is below the 268,435,45
 hard request limit, not a live-allocation measurement. Process peak RSS was 210,288
 KiB.
 
-Known visual/physics limitations remain deliberate: bloom is reviewed disabled and
-does not conceal inner-boundary speckle; escape sampling is a finite BL-coordinate
+Known visual/physics limitations remain deliberate: bloom-on is the accepted hero
+presentation and bloom-off remains the clean technical reference; bloom does not
+conceal inner-boundary speckle; escape sampling is a finite BL-coordinate
 star environment; no ray bundles, thick-volume transport, spectral transport, or
 camera optics are modeled. RK45 remains the reference and Geokerr remains approximate.
 See [Cinematic appearance](CINEMATIC_APPEARANCE.md) for the exact contract and

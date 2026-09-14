@@ -1,7 +1,8 @@
 # Plan 8 design review evidence
 
 Open [index.html](index.html) in a browser for the visual reference board. The
-[proposal](../CINEMATIC_APPEARANCE_PROPOSAL.md) is **pending design acceptance**.
+[proposal](../CINEMATIC_APPEARANCE_PROPOSAL.md) and design direction were accepted;
+the fixed bloom-on still was selected as the Plan 8 hero on 2026-09-14.
 Every local black-hole PNG here is unedited legacy renderer output, not the new
 cinematic pipeline. External reference images are linked, not bundled.
 [scene-v2.proposal.json](scene-v2.proposal.json) is a complete design candidate,
@@ -29,7 +30,8 @@ cmake --build "$HOME/.cache/blackhole-renderer/plan8-gui" -j 4
 ctest --test-dir "$HOME/.cache/blackhole-renderer/plan8-gui" --output-on-failure
 ```
 
-CPU 55/55, headless 85/85, GUI 86/86 pass; GUI presentation actually ran.
+Historical design-stage results were CPU 55/55, headless 85/85, GUI 86/86. The final
+implementation results are CPU 61/61, headless 101/101 and GUI 102/102; GUI presentation actually ran.
 Logs: [CPU](evidence/cpu-ctest.log), [headless](evidence/headless-ctest.log),
 [GUI](evidence/gui-ctest.log). Golden bytes and strict repaired ray tests pass.
 [Fresh PSNR readback](evidence/psnr.log): Schwarzschild 27.0318 dB against 25 dB;

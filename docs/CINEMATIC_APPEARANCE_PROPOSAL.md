@@ -1,9 +1,9 @@
-# Plan 8 appearance proposal — design approved; final visual acceptance pending
+# Plan 8 appearance proposal — design and hero still accepted
 
 Prepared 2026-09-06 and approved for implementation on 2026-09-07. The approval is
-the design go-ahead for the bounded Plan 8 direction below; it is **not** final visual
-acceptance of the produced stills. That final gate remains pending while the selected
-frame / async presentation question awaits the user's answer. Start with the
+the design go-ahead for the bounded Plan 8 direction below. The user accepted the
+bloom-on fixed hero still on 2026-09-14; the selected frame and async presentation
+evidence are retained below. Start with the
 [historical design board](plan8-review/index.html) and the [actual still board](plan8-review/stills/index.html).
 
 ## Approved design direction
@@ -295,12 +295,13 @@ Legacy golden bytes and repaired ray/PSNR tests pass at unchanged thresholds.
 This historical baseline predates the approved implementation. Current CPU coverage,
 CPU sanitizer rerun, cinematic parity, HDR/bloom costs, and actual captures are
 recorded in [Validation](VALIDATION.md) and the [still review board](plan8-review/stills/index.html).
-Final user visual acceptance remains pending. See [reproduction and logs](plan8-review/README.md).
+Final user visual acceptance: **accepted 2026-09-14**, with bloom enabled for the hero
+presentation. See [reproduction and logs](plan8-review/README.md).
 
 `build` and `imgui.ini` are preserved. The configured HDD mount is absent; small
 artifacts/builds use the existing home cache, and baseline review images are about
 3 MiB in the repository. No push, publication or Plans 9–14 work.
 
 Design approval record: **approved 2026-09-07**. Final visual acceptance record:
-**pending**. Record the user's actual decision in the TaskVault task/output; do not
-infer it from silence.
+**accepted 2026-09-14: bloom on**. Record any future activity decision separately in
+the Plan 9 TaskVault task/output.

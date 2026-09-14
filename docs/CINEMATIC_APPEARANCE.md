@@ -2,8 +2,8 @@
 
 Plan 8 defines an additive, versioned appearance path. It does not alter legacy
 presets, legacy `bhr.cinematic` v1 documents, their parser, or legacy RGBA8 output.
-The Plan 8 design was approved on 2026-09-07; final user visual acceptance remains
-pending and Plan 8 is therefore not complete.
+The Plan 8 design was approved on 2026-09-07 and the bloom-on hero still was accepted
+by the user on 2026-09-14. Plan 9 owns the next time-varying emission extension.
 
 ## Versions and documents
 
@@ -92,7 +92,8 @@ and wrapped azimuth `phi` in radians: `u=(r-r_inner)/(r_outer-r_inner)` and
 source coordinates, and has no time or phase input. Plan 8 only applies bounded static
 emissivity detail and outer taper; it does not change geodesics, opacity, temperature,
 or frequency shift. This becomes a frozen Plan 9 handoff only after final visual
-acceptance; that decision remains pending.
+acceptance. The bloom-on fixed still is the accepted Plan 8 hero; Plan 9 now extends
+this frozen spatial contract with an explicit time-varying emission model.
 
 ## Limitations
 
