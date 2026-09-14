@@ -185,3 +185,15 @@ TEST_CASE("cinematic bloom spreads a bright edge pixel but excludes diagnostic p
     CHECK(got[1].x==0); CHECK(got[1].y==0); CHECK(got[1].z==0);
     REQUIRE(cudaFree(output)==cudaSuccess);
 }
+
+TEST_CASE("animated cinematic phase changes emission and wraps deterministically") {
+    const bhr::RenderParams p{.6f,{55,88,0,40,32,18},{3.83f,20,40000,1},true,true,true,false,bhr::IntegratorKind::kRK45};
+    const bhr::EmissionV1 emission{true,7,.18f,.06f,1.0f};
+    const auto first=bhr::render_animated({p,{},emission,{0,180}},{});
+    const auto middle=bhr::render_animated({p,{},emission,{90,180}},{});
+    const auto wrapped=bhr::render_animated({p,{},emission,{0,180}},{});
+    CHECK(first.image.rgba==wrapped.image.rgba);
+    CHECK(first.image.rgba!=middle.image.rgba);
+    CHECK(first.diagnostics.invalid==0);
+    CHECK(middle.diagnostics.invalid==0);
+}

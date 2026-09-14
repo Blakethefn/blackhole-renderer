@@ -74,6 +74,17 @@ submission boundary. It retains the existing last-good image behavior. The ImGui
 is drawn into an sRGB framebuffer with `GL_FRAMEBUFFER_SRGB` disabled for that draw
 and restored afterwards, preventing a second transfer encoding.
 
+## Animated emission v1 and render document v3
+
+`EmissionV1` is explicit, bounded artistic disk activity. `AnimatedRenderDocument`
+wraps the unchanged scene/shots and appearance values with it; strict
+`bhr.cinematic` v3 requires a version-1 emission object and `loop_frames` on every
+shot. `AnimatedCinematicRequest` adds an exact rational `EmissionPhase` to the
+immutable render snapshot. `render_animated_radiance_device`, `render_animated_device`,
+and `render_animated` use actual disk-hit Boyer–Lindquist `r`/`phi` coordinates and
+never depend on prior frame order, wall time or a finished framebuffer. See
+`docs/ANIMATED_EMISSION.md` for field ranges and the temporal contract.
+
 ## Workbench boundary
 
 The workbench's `Viewport` owns the persistent mapped PBO, alternating OpenGL

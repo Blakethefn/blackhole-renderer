@@ -2,8 +2,9 @@
 
 Plan 7 adds a CPU-only scene/shot foundation and selected-frame PNG rendering.
 The existing RK45 renderer, complete v1 presets, projection and RGBA8 output are
-unchanged. Fixed samples have **static disk emission**. Loop phase is metadata;
-this is not an animated-loop or video exporter.
+unchanged. Version 1 and version 2 cinematic samples have static disk emission;
+version 3 explicitly opts into Plan 9's animated emission. Sequence phase is exact,
+but this is not a frame-sequence or video exporter.
 
 ## Render selected frames
 
@@ -218,8 +219,8 @@ exercise actual fixed/legacy PNG byte parity and changing selected orbit samples
 The original golden image, numerical classifications and 25/15 dB PSNR gates
 remain unchanged. See [validation](VALIDATION.md) for measured results.
 
-Plan 8 owns cinematic look/radiance; Plan 9 owns animated emission and its eventual
-seed contract. Plan 8's bloom-on fixed still is the accepted hero. This foundation has no stochastic consumer or seed field. Shading,
+Plan 8 owns cinematic look/radiance; Plan 9 owns animated emission and its versioned
+seed contract. Plan 8's bloom-on fixed still is the accepted hero. Shading,
 HDR/bloom, disk activity, sequences, caching, video encoding and GUI shot authoring
 are deferred. The workbench continues to use its existing v1 presets and controls.
 

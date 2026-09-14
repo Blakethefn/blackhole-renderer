@@ -14,9 +14,11 @@ FrameDiagnostics* diagnostics_data(CinematicDeviceTarget);
 /// Async, allocation-free calls. Targets/output/starfield/stream must remain alive
 /// until completion. Stages execute in order on the same stream. No GL dependency.
 cudaError_t render_radiance_device(const CinematicRequest&, const Starfield&, CinematicDeviceTarget, cudaStream_t = 0);
+cudaError_t render_animated_radiance_device(const AnimatedCinematicRequest&, const Starfield&, CinematicDeviceTarget, cudaStream_t = 0);
 cudaError_t bloom_device(const AppearanceV1&, CinematicDeviceTarget, cudaStream_t = 0);
 cudaError_t display_device(const AppearanceV1&, CinematicDeviceTarget, uchar4*, size_t capacity_bytes, cudaStream_t = 0);
 cudaError_t render_cinematic_device(const CinematicRequest&, const Starfield&, CinematicDeviceTarget, uchar4*, size_t, cudaStream_t = 0);
+cudaError_t render_animated_device(const AnimatedCinematicRequest&, const Starfield&, CinematicDeviceTarget, uchar4*, size_t, cudaStream_t = 0);
 /// Reusable owned workspace plus pinned asynchronous diagnostics. Not an image
 /// cache. Construct/close only with no work in flight; values are never shared mutably.
 class CinematicBuffer {
@@ -36,4 +38,5 @@ private:
 struct CinematicResult { Image image; FrameDiagnostics diagnostics; };
 /// Blocking wrapper. Throws actionable errors; never returns a partial/invalid image.
 CinematicResult render_cinematic(const CinematicRequest&, const Starfield&);
+CinematicResult render_animated(const AnimatedCinematicRequest&, const Starfield&);
 } // namespace bhr

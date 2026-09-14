@@ -36,6 +36,7 @@ public:
     // Validation errors are recoverable on the next valid submission.
     bool submit(const RenderParams& params, const Starfield& starfield);
     bool submit(const CinematicRequest& request, const Starfield& starfield);
+    bool submit(const AnimatedCinematicRequest& request, const Starfield& starfield);
     bool poll(); // true exactly when a newly completed image is published
 
     bool busy() const noexcept;

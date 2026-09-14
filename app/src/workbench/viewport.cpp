@@ -174,7 +174,9 @@ struct Viewport::Impl {
     }
 
     bool submit(const RenderParams& params, const Starfield& starfield,
-                const AppearanceV1* appearance = nullptr) {
+                const AppearanceV1* appearance = nullptr,
+                const EmissionV1* emission = nullptr,
+                const EmissionPhase* phase_value = nullptr) {
         if (phase != Phase::idle) return false;
         if (const char* reason = validation_error(params)) {
             message = reason;
@@ -182,7 +184,10 @@ struct Viewport::Impl {
         }
         if (appearance) {
             try {
-                validate_cinematic_request({params,*appearance});
+                if (emission && !phase_value)
+                    throw std::runtime_error("Animated cinematic request requires an emission phase");
+                if (emission) validate_animated_request({params,*appearance,*emission,*phase_value});
+                else validate_cinematic_request({params,*appearance});
                 const auto sizes=cinematic_sizes(params.camera.width,params.camera.height);
                 const size_t retained=static_cast<size_t>(displayed_width)*displayed_height*4;
                 if(retained>sizes.rgba_bytes && sizes.budget_bytes+retained-sizes.rgba_bytes>kCinematicResourceBudget)
@@ -210,7 +215,9 @@ struct Viewport::Impl {
         if (!cuda_ok(cudaGraphicsResourceGetMappedPointer(&pixels, &capacity_bytes, resource),
                       "Get mapped presentation buffer")) return false;
         if (!cuda_ok(cudaEventRecord(render_start, stream), "Record render start")) return false;
-        const auto launch=appearance
+        const auto launch=emission
+            ? render_animated_device({params,*appearance,*emission,*phase_value},starfield,cinematic->target(),static_cast<uchar4*>(pixels),capacity_bytes,stream)
+            : appearance
             ? render_cinematic_device({params,*appearance},starfield,cinematic->target(),static_cast<uchar4*>(pixels),capacity_bytes,stream)
             : render_device(params,starfield,static_cast<uchar4*>(pixels),capacity_bytes,stream);
         if (!cuda_ok(launch,
@@ -347,6 +354,12 @@ bool Viewport::poll() {
 bool Viewport::submit(const CinematicRequest& request, const Starfield& starfield) {
     const bool already_failed=impl_->phase==Impl::Phase::failed;
     const bool accepted=impl_->submit(request.params,starfield,&request.appearance);
+    if (!already_failed && impl_->phase==Impl::Phase::failed) impl_->cleanup_failure();
+    return accepted;
+}
+bool Viewport::submit(const AnimatedCinematicRequest& request, const Starfield& starfield) {
+    const bool already_failed=impl_->phase==Impl::Phase::failed;
+    const bool accepted=impl_->submit(request.params,starfield,&request.appearance,&request.emission,&request.phase);
     if (!already_failed && impl_->phase==Impl::Phase::failed) impl_->cleanup_failure();
     return accepted;
 }

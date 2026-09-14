@@ -114,6 +114,8 @@ if(BHR_ENABLE_CUDA)
         DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole-renderer/presets/shots)
     install(FILES presets/cinematic/scene.json
         DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole-renderer/presets/cinematic)
+    install(FILES presets/cinematic/scene-animated.json
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole-renderer/presets/cinematic)
     install(FILES presets/cinematic/assets/stars-v1.exr presets/cinematic/assets/README.md
         DESTINATION ${CMAKE_INSTALL_DATADIR}/blackhole-renderer/presets/cinematic/assets)
     install(FILES presets/reference.json
@@ -131,6 +133,7 @@ if(BHR_ENABLE_CUDA)
         THIRD_PARTY_NOTICES.md
         docs/SHOTS.md
         docs/CINEMATIC_APPEARANCE.md
+        docs/ANIMATED_EMISSION.md
         docs/PUBLIC_API.md
         docs/RELEASE_CANDIDATE.md
         docs/VALIDATION.md

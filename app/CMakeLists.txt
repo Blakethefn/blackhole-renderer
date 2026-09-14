@@ -36,6 +36,8 @@ endif()
 # The headless CLI remains available with BHR_BUILD_APP=OFF.
 add_executable(generate-cinematic-stars EXCLUDE_FROM_ALL ../tools/generate_cinematic_stars.cpp)
 target_link_libraries(generate-cinematic-stars PRIVATE bhr::lib)
+add_executable(animated-emission-benchmark EXCLUDE_FROM_ALL ../tools/animated_emission_benchmark.cpp)
+target_link_libraries(animated-emission-benchmark PRIVATE bhr::lib)
 
 add_executable(blackhole-cli
     src/cli.cpp

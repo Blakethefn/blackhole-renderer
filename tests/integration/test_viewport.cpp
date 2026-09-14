@@ -153,6 +153,17 @@ TEST_CASE("cinematic viewport matches headless bytes and retains completed image
         CHECK(viewport.texture()==texture);
         CHECK(read_texture(viewport)==host.image.rgba);
     }
+    const bhr::EmissionV1 emission{true,7,.18f,.06f,1.0f};
+    const auto animated0=bhr::AnimatedCinematicRequest{p,{.15f,.18f,.1f,.15f,1,{true,.06f,1}},emission,{0,180}};
+    const auto animated90=bhr::AnimatedCinematicRequest{p,{.15f,.18f,.1f,.15f,1,{true,.06f,1}},emission,{90,180}};
+    const auto animated_host=bhr::render_animated(animated0,empty);
+    REQUIRE(viewport.submit(animated0,empty));
+    await_image(viewport);
+    CHECK(read_texture(viewport)==animated_host.image.rgba);
+    REQUIRE(viewport.submit(animated90,empty));
+    await_image(viewport);
+    CHECK(read_texture(viewport)==bhr::render_animated(animated90,empty).image.rgba);
+    CHECK(animated_host.image.rgba!=bhr::render_animated(animated90,empty).image.rgba);
     p.camera.width=47;p.camera.height=29;
     REQUIRE(viewport.submit(bhr::CinematicRequest{p,{}},empty));
     await_image(viewport);

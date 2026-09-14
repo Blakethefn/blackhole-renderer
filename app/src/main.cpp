@@ -89,8 +89,10 @@ bhr::workbench::State shortcut(const bhr::workbench::State& state, SDL_Keycode k
 
 int run(const std::optional<bhr::cli::ShotSelection>& selected) {
     const auto loaded=selected?std::make_unique<bhr::RenderDocument>(bhr::load_render_document(selected->file)):nullptr;
+    const auto* animated=loaded?std::get_if<bhr::AnimatedRenderDocument>(loaded.get()):nullptr;
     const auto* cinematic=loaded?std::get_if<bhr::CinematicRenderDocument>(loaded.get()):nullptr;
-    const auto* document=loaded?(cinematic?&cinematic->scene_shots:&std::get<bhr::CinematicDocument>(*loaded)):nullptr;
+    const auto* document=loaded?(animated?&animated->scene_shots:cinematic?&cinematic->scene_shots:
+        &std::get<bhr::CinematicDocument>(*loaded)):nullptr;
     const auto frame=document?std::make_unique<bhr::FrameSample>(bhr::evaluate_frame(*document,selected->id,selected->frame)):nullptr;
     Application application;
     if (!application.initialize()) {
@@ -122,12 +124,12 @@ int run(const std::optional<bhr::cli::ShotSelection>& selected) {
         state=changed(state,frame->params);
         if(frame->params.enable_starfield) {
             const auto path=bhr::resolve_starfield(document->scene,selected->file);
-            const bool ok=cinematic?bhr::load_cinematic_starfield(path,starfield.value)
+            const bool ok=(cinematic||animated)?bhr::load_cinematic_starfield(path,starfield.value)
                 :bhr::load_starfield(path,16384,starfield.value);
             if(!ok) throw std::runtime_error("Cannot load selected frame starfield");
         }
         const std::string title="Black Hole Workbench — "+selected->id+" / frame "+std::to_string(selected->frame)
-            +(cinematic?" / cinematic":" / legacy");
+            +(animated?" / animated":cinematic?" / cinematic":" / legacy");
         SDL_SetWindowTitle(application.window,title.c_str());
     }
     Controls controls{};
@@ -172,8 +174,16 @@ int run(const std::optional<bhr::cli::ShotSelection>& selected) {
         if (!state.rendering && state.params.enable_starfield && !starfield.value.is_valid())
             state = failed_render(state, "Load the preset's EXR starfield or disable starfield sampling.");
         if (can_submit(state, starfield.value.is_valid()) && !viewport.busy()) {
-            const bool accepted=cinematic?viewport.submit(bhr::CinematicRequest{state.params,cinematic->appearance},starfield.value)
-                :viewport.submit(state.params,starfield.value);
+            bool accepted=false;
+            if (animated) {
+                if (!frame || !frame->loop_phase) throw std::runtime_error("Animated selected frame is missing its loop phase");
+                accepted=viewport.submit(bhr::AnimatedCinematicRequest{state.params,animated->appearance,animated->emission,
+                    {frame->loop_phase->numerator,frame->loop_phase->denominator}},starfield.value);
+            } else if (cinematic) {
+                accepted=viewport.submit(bhr::CinematicRequest{state.params,cinematic->appearance},starfield.value);
+            } else {
+                accepted=viewport.submit(state.params,starfield.value);
+            }
             if (accepted) state = submitted(state);
             else if (!viewport.error().empty()) state = failed_render(submitted(state), viewport.error());
         }

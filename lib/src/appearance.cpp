@@ -35,10 +35,24 @@ void validate_cinematic_request(const CinematicRequest& r) {
     validate_appearance(r.appearance);
     (void)cinematic_sizes(r.params.camera.width,r.params.camera.height);
 }
+void validate_animated_request(const AnimatedCinematicRequest& r) {
+    validate_cinematic_request({r.params, r.appearance});
+    validate_emission(r.emission);
+    validate_emission_phase(r.phase);
+}
 CinematicRenderDocument upgrade_cinematic(const CinematicDocument& doc, const AppearanceV1& a) {
     validate_cinematic(doc);
     validate_appearance(a);
     for (const auto& shot:doc.shots) (void)cinematic_sizes(shot.width,shot.height);
     return {doc,a};
+}
+void validate_animated_document(const AnimatedRenderDocument& document) {
+    validate_cinematic(document.scene_shots);
+    validate_appearance(document.appearance);
+    validate_emission(document.emission);
+    for (const auto& shot : document.scene_shots.shots) {
+        if (!shot.loop_frames)
+            throw std::runtime_error("Animated cinematic shots require loop_frames");
+    }
 }
 } // namespace bhr

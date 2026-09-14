@@ -156,7 +156,9 @@ Json parse_root(const std::string& contents) {
 }
 CinematicDocument document_from_json(const Json& json, int version) {
     if (version == 1) fields(json, {"format", "schema_version", "scene", "shots"});
-    else fields(json, {"format", "schema_version", "scene", "shots", "appearance"});
+    else if (version == 2) fields(json, {"format", "schema_version", "scene", "shots", "appearance"});
+    else if (version == 3) fields(json, {"format", "schema_version", "scene", "shots", "appearance", "emission"});
+    else throw std::runtime_error("Unsupported cinematic schema version");
     if (string(json.at("format"), "format") != "bhr.cinematic") throw std::runtime_error("Expected format bhr.cinematic");
     if (integer(json.at("schema_version"), UINT32_MAX, "schema_version") != static_cast<uint64_t>(version))
         throw std::runtime_error("Unsupported cinematic schema version");
@@ -246,17 +248,42 @@ Json appearance_json(const AppearanceV1& a) {
         {"star_intensity",a.star_intensity},{"exposure_ev",a.exposure_ev},{"tone_map","reinhard-rgb-v1"},
         {"output_transfer","srgb"},{"bloom",{{"enabled",a.bloom.enabled},{"strength",a.bloom.strength},{"threshold",a.bloom.threshold}}}};
 }
+EmissionV1 emission_from_json(const Json& j) {
+    fields(j, {"schema_version", "enabled", "seed", "amplitude", "radial_modulation", "flow_strength"});
+    if (integer(j.at("schema_version"), UINT32_MAX, "emission version") != 1)
+        throw std::runtime_error("Unsupported emission version");
+    if (!j.at("enabled").is_boolean()) throw std::runtime_error("emission.enabled must be boolean");
+    const EmissionV1 emission{j.at("enabled").get<bool>(),
+        static_cast<uint32_t>(integer(j.at("seed"), UINT32_MAX, "emission.seed")),
+        number(j.at("amplitude")), number(j.at("radial_modulation")), number(j.at("flow_strength"))};
+    validate_emission(emission);
+    return emission;
+}
+Json emission_json(const EmissionV1& emission) {
+    validate_emission(emission);
+    return {{"schema_version",1},{"enabled",emission.enabled},{"seed",emission.seed},
+        {"amplitude",emission.amplitude},{"radial_modulation",emission.radial_modulation},
+        {"flow_strength",emission.flow_strength}};
+}
 CinematicRenderDocument v2_from_json(const Json& j) {
     const auto doc=document_from_json(j,2);
     return upgrade_cinematic(doc,appearance_from_json(j.at("appearance")));
 }
+AnimatedRenderDocument v3_from_json(const Json& j) {
+    const auto doc = document_from_json(j, 3);
+    const AnimatedRenderDocument result{doc, appearance_from_json(j.at("appearance")), emission_from_json(j.at("emission"))};
+    validate_animated_document(result);
+    return result;
+}
 }
 CinematicRenderDocument parse_cinematic_v2(const std::string& contents) { return v2_from_json(parse_root(contents)); }
+AnimatedRenderDocument parse_cinematic_v3(const std::string& contents) { return v3_from_json(parse_root(contents)); }
 RenderDocument parse_render_document(const std::string& contents) {
     const auto j=parse_root(contents);
     const auto version=integer(j.at("schema_version"),UINT32_MAX,"schema_version");
     if (version == 1) return document_from_json(j,1);
     if (version == 2) return v2_from_json(j);
+    if (version == 3) return v3_from_json(j);
     throw std::runtime_error("Unsupported cinematic schema version");
 }
 std::string serialize_cinematic_v2(const CinematicRenderDocument& doc) {
@@ -266,7 +293,16 @@ std::string serialize_cinematic_v2(const CinematicRenderDocument& doc) {
     j["appearance"]=appearance_json(doc.appearance);
     return formatted(j);
 }
+std::string serialize_cinematic_v3(const AnimatedRenderDocument& doc) {
+    validate_animated_document(doc);
+    auto j=document_json(doc.scene_shots);
+    j["schema_version"]=3;
+    j["appearance"]=appearance_json(doc.appearance);
+    j["emission"]=emission_json(doc.emission);
+    return formatted(j);
+}
 CinematicRenderDocument load_cinematic_v2(const std::filesystem::path& path) { return parse_cinematic_v2(read_document(path)); }
+AnimatedRenderDocument load_cinematic_v3(const std::filesystem::path& path) { return parse_cinematic_v3(read_document(path)); }
 RenderDocument load_render_document(const std::filesystem::path& path) { return parse_render_document(read_document(path)); }
 void save_cinematic_v2(const CinematicRenderDocument& doc, const std::filesystem::path& path) {
     check_path(path);

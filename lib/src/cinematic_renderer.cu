@@ -48,7 +48,8 @@ __device__ void store_pixel(View v, int i, double r, double g, double b) {
     v.status[i]=clipped?PixelStatus::clipped:PixelStatus::valid;
     if(clipped) atomicAdd(&v.diagnostics->clipped,1u);
 }
-__global__ void radiance_kernel(CinematicRequest request, View v, cudaTextureObject_t sky) {
+__global__ void radiance_kernel(CinematicRequest request, EmissionV1 emission, float phase,
+                                View v, cudaTextureObject_t sky) {
     const auto p=request.params; const auto a=request.appearance;
     const int x=blockIdx.x*blockDim.x+threadIdx.x, y=blockIdx.y*blockDim.y+threadIdx.y;
     if(x>=p.camera.width||y>=p.camera.height)return;
@@ -82,7 +83,8 @@ __global__ void radiance_kernel(CinematicRequest request, View v, cudaTextureObj
     const double beam=p.enable_beaming?g2*g2:1.0;
     const double emissivity=log(fmax(double(temperature),1.0))/log(40000.0);
     const double intensity=1.5*double(p.disk.brightness)*emissivity*beam
-        *disk_appearance(hit.r,hit.phi,p.disk.r_inner,p.disk.r_outer,a.disk_detail,a.outer_fade_fraction);
+        *disk_appearance(hit.r,hit.phi,p.disk.r_inner,p.disk.r_outer,a.disk_detail,a.outer_fade_fraction)
+        *animated_disk_emission(hit.r,hit.phi,p.disk.r_inner,p.disk.r_outer,emission,phase);
     store_pixel(v,i,srgb_decode(r)*intensity,srgb_decode(green)*intensity,srgb_decode(b)*intensity);
 }
 __device__ RadiancePixel bright(RadiancePixel p, PixelStatus status, float exposure, float threshold) {
@@ -148,7 +150,21 @@ cudaError_t render_radiance_device(const CinematicRequest& r,const Starfield& sf
             (r.params.enable_starfield&&(!sf.is_valid()||sf.width<=0||sf.height<=0||sf.width>2048||static_cast<size_t>(sf.width)*sf.height>2*1024*1024))) return cudaErrorInvalidValue;
         const auto clear=cudaMemsetAsync(v.diagnostics,0,sizeof(FrameDiagnostics),stream);if(clear!=cudaSuccess)return clear;
         const dim3 block(16,16),grid((t.width+15)/16,(t.height+15)/16);
-        radiance_kernel<<<grid,block,0,stream>>>(r,v,r.params.enable_starfield?sf.tex:0);
+        radiance_kernel<<<grid,block,0,stream>>>(r,{},0.0f,v,r.params.enable_starfield?sf.tex:0);
+        return cudaGetLastError();
+    } catch(const std::exception&) {return cudaErrorInvalidValue;}
+}
+cudaError_t render_animated_radiance_device(const AnimatedCinematicRequest& r,const Starfield& sf,
+                                             CinematicDeviceTarget t,cudaStream_t stream) {
+    try {
+        validate_animated_request(r);const auto v=view(t);
+        if(r.params.camera.width!=t.width||r.params.camera.height!=t.height||
+            (r.params.enable_starfield&&(!sf.is_valid()||sf.width<=0||sf.height<=0||sf.width>2048||static_cast<size_t>(sf.width)*sf.height>2*1024*1024)))
+            return cudaErrorInvalidValue;
+        const auto clear=cudaMemsetAsync(v.diagnostics,0,sizeof(FrameDiagnostics),stream);if(clear!=cudaSuccess)return clear;
+        const dim3 block(16,16),grid((t.width+15)/16,(t.height+15)/16);
+        radiance_kernel<<<grid,block,0,stream>>>(CinematicRequest{r.params,r.appearance},r.emission,
+            emission_phase_value(r.phase),v,r.params.enable_starfield?sf.tex:0);
         return cudaGetLastError();
     } catch(const std::exception&) {return cudaErrorInvalidValue;}
 }
@@ -182,6 +198,17 @@ cudaError_t render_cinematic_device(const CinematicRequest& r,const Starfield& s
         if(!out||reinterpret_cast<uintptr_t>(out)%alignof(uchar4)||capacity<s.rgba_bytes||overlaps(t.data,workspace_bytes(s),out,s.rgba_bytes))return cudaErrorInvalidValue;
     } catch(const std::exception&) {return cudaErrorInvalidValue;}
     auto status=render_radiance_device(r,sf,t,stream);if(status!=cudaSuccess)return status;
+    status=bloom_device(r.appearance,t,stream);if(status!=cudaSuccess)return status;
+    return display_device(r.appearance,t,out,capacity,stream);
+}
+cudaError_t render_animated_device(const AnimatedCinematicRequest& r,const Starfield& sf,CinematicDeviceTarget t,
+                                    uchar4* out,size_t capacity,cudaStream_t stream) {
+    try {
+        const auto s=cinematic_sizes(t.width,t.height);(void)view(t);
+        if(!out||reinterpret_cast<uintptr_t>(out)%alignof(uchar4)||capacity<s.rgba_bytes||overlaps(t.data,workspace_bytes(s),out,s.rgba_bytes))
+            return cudaErrorInvalidValue;
+    } catch(const std::exception&) {return cudaErrorInvalidValue;}
+    auto status=render_animated_radiance_device(r,sf,t,stream);if(status!=cudaSuccess)return status;
     status=bloom_device(r.appearance,t,stream);if(status!=cudaSuccess)return status;
     return display_device(r.appearance,t,out,capacity,stream);
 }
@@ -229,6 +256,27 @@ CinematicResult render_cinematic(const CinematicRequest& request,const Starfield
     check(cudaMemcpy(image.rgba.data(),out.pixels,s.rgba_bytes,cudaMemcpyDeviceToHost),"Read cinematic pixels");
     check(cudaFree(out.pixels),"Free cinematic output");out.pixels=nullptr;
     if(!buffer.close())throw std::runtime_error("Free cinematic workspace failed");
+    return {std::move(image),diagnostics};
+}
+CinematicResult render_animated(const AnimatedCinematicRequest& request,const Starfield& sf) {
+    validate_animated_request(request);
+    if(request.params.enable_starfield&&!sf.is_valid())throw std::runtime_error("Animated cinematic scene requires its starfield");
+    const auto s=cinematic_sizes(request.params.camera.width,request.params.camera.height);
+    CinematicBuffer buffer(s.width,s.height);
+    struct Output {
+        uchar4* pixels=nullptr;
+        ~Output() {if(pixels) {const auto e=cudaFree(pixels);if(e!=cudaSuccess)std::fprintf(stderr,"Animated output cleanup: %s\\n",cudaGetErrorString(e));}}
+    } out;
+    check(cudaMalloc(&out.pixels,s.rgba_bytes),"Allocate animated output");
+    check(render_animated_device(request,sf,buffer.target(),out.pixels,s.rgba_bytes),"Render animated image");
+    check(buffer.read_diagnostics_async(0),"Read animated diagnostics");
+    check(cudaStreamSynchronize(0),"Complete animated image");
+    const auto diagnostics=buffer.diagnostics();
+    if(diagnostics.invalid)throw std::runtime_error("Animated shading produced invalid radiance; frame rejected");
+    Image image;image.allocate(s.width,s.height);
+    check(cudaMemcpy(image.rgba.data(),out.pixels,s.rgba_bytes,cudaMemcpyDeviceToHost),"Read animated pixels");
+    check(cudaFree(out.pixels),"Free animated output");out.pixels=nullptr;
+    if(!buffer.close())throw std::runtime_error("Free animated workspace failed");
     return {std::move(image),diagnostics};
 }
 } // namespace bhr

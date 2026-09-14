@@ -117,8 +117,10 @@ int run(int argc, char** argv) {
 
     if (const auto selected = bhr::cli::shot_selection(options)) {
         const auto loaded = bhr::load_render_document(selected->file);
+        const auto* animated = std::get_if<bhr::AnimatedRenderDocument>(&loaded);
         const auto* cinematic = std::get_if<bhr::CinematicRenderDocument>(&loaded);
-        const auto& document = cinematic ? cinematic->scene_shots : std::get<bhr::CinematicDocument>(loaded);
+        const auto& document = animated ? animated->scene_shots
+            : cinematic ? cinematic->scene_shots : std::get<bhr::CinematicDocument>(loaded);
         const auto frame = bhr::evaluate_frame(document, selected->id, selected->frame);
         const auto asset = bhr::resolve_starfield(document.scene, selected->file);
         std::fprintf(stderr, "Shot %s frame=%llu time=%llu/%llu s (%.9f) duration=%llu/%llu s (%.9f)\n",
@@ -126,9 +128,24 @@ int run(int argc, char** argv) {
             static_cast<unsigned long long>(frame.time.numerator), static_cast<unsigned long long>(frame.time.denominator),
             frame.time.seconds(), static_cast<unsigned long long>(frame.duration.numerator),
             static_cast<unsigned long long>(frame.duration.denominator), frame.duration.seconds());
-        if (frame.loop_phase) std::fprintf(stderr, "Emission loop phase=%llu/%llu (metadata only; static emission)\n",
+        if (frame.loop_phase) std::fprintf(stderr, "Emission loop phase=%llu/%llu%s\n",
             static_cast<unsigned long long>(frame.loop_phase->numerator),
-            static_cast<unsigned long long>(frame.loop_phase->denominator));
+            static_cast<unsigned long long>(frame.loop_phase->denominator),
+            animated ? " (animated emission)" : " (metadata only; static emission)");
+        if (animated) {
+            StarfieldOwner starfield;
+            if (!frame.loop_phase) throw std::runtime_error("Animated shot is missing its loop phase");
+            if (frame.params.enable_starfield && !bhr::load_cinematic_starfield(asset,starfield.value))
+                throw std::runtime_error("Cannot load animated cinematic linear sRGB starfield");
+            const bhr::AnimatedCinematicRequest request{frame.params,animated->appearance,animated->emission,
+                {frame.loop_phase->numerator,frame.loop_phase->denominator}};
+            const auto result=bhr::render_animated(request,starfield.value);
+            std::fprintf(stderr,"Cinematic v3 / emission v1: phase=%llu/%llu unknown=%u invalid=%u clipped=%u\n",
+                static_cast<unsigned long long>(request.phase.numerator),static_cast<unsigned long long>(request.phase.denominator),
+                result.diagnostics.unknown,result.diagnostics.invalid,result.diagnostics.clipped);
+            if (!bhr::write_srgb_png(result.image,selected->output)) throw std::runtime_error("Cannot write animated cinematic PNG");
+            return 0;
+        }
         if (cinematic) {
             StarfieldOwner starfield;
             if (frame.params.enable_starfield && !bhr::load_cinematic_starfield(asset,starfield.value))

@@ -158,6 +158,22 @@ The workbench accepts the same selected-frame startup inputs:
 The design direction was approved on 2026-09-07 and the user accepted the bloom-on
 fixed hero still on 2026-09-14. Plan 8 is complete; Plan 9 owns animated emission.
 
+## Animated disk emission (Plan 9)
+
+Plan 9 adds an explicit cinematic v3 document with deterministic, ray-derived disk
+activity. The reference fixture contains a 180-frame fixed loop and a moving orbit:
+
+```bash
+"$BUILD/app/blackhole-cli" --shot-file presets/cinematic/scene-animated.json \
+  --shot-id fixed --frame 90 --output animated-fixed-090.png
+```
+
+The activity model is bounded periodic emissivity sampled at the actual disk-hit
+coordinates, with faster inner-disk advection, seed 7, and exact loop phase. See the
+[animated emission contract](docs/ANIMATED_EMISSION.md) and the [Plan 9 review
+samples](docs/plan9-review/stills/index.html). The workbench accepts the same selected
+frame options read-only; sequence export and video encoding remain later plans.
+
 ## Workbench
 
 ```bash

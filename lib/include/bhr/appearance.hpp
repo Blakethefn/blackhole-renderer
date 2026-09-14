@@ -1,5 +1,6 @@
 #pragma once
 #include "bhr/shot.hpp"
+#include "bhr/emission.hpp"
 
 namespace bhr {
 struct BloomV1 {
@@ -16,8 +17,19 @@ struct AppearanceV1 {
     const BloomV1 bloom{};
 };
 struct CinematicRenderDocument { const CinematicDocument scene_shots; const AppearanceV1 appearance; };
+struct AnimatedRenderDocument {
+    const CinematicDocument scene_shots;
+    const AppearanceV1 appearance;
+    const EmissionV1 emission;
+};
 struct CinematicRequest { const RenderParams params; const AppearanceV1 appearance; };
-using RenderDocument = std::variant<CinematicDocument, CinematicRenderDocument>;
+struct AnimatedCinematicRequest {
+    const RenderParams params;
+    const AppearanceV1 appearance;
+    const EmissionV1 emission;
+    const EmissionPhase phase;
+};
+using RenderDocument = std::variant<CinematicDocument, CinematicRenderDocument, AnimatedRenderDocument>;
 inline constexpr size_t kCinematicResourceBudget = 256 * 1024 * 1024;
 struct CinematicSizes {
     const int width, height, bloom_width, bloom_height;
@@ -26,10 +38,15 @@ struct CinematicSizes {
 void validate_appearance(const AppearanceV1& appearance);
 CinematicSizes cinematic_sizes(int width, int height);
 void validate_cinematic_request(const CinematicRequest& request);
+void validate_animated_request(const AnimatedCinematicRequest& request);
 CinematicRenderDocument upgrade_cinematic(const CinematicDocument&, const AppearanceV1&);
+void validate_animated_document(const AnimatedRenderDocument& document);
 CinematicRenderDocument parse_cinematic_v2(const std::string&);
+AnimatedRenderDocument parse_cinematic_v3(const std::string&);
 std::string serialize_cinematic_v2(const CinematicRenderDocument&);
+std::string serialize_cinematic_v3(const AnimatedRenderDocument&);
 CinematicRenderDocument load_cinematic_v2(const std::filesystem::path&);
+AnimatedRenderDocument load_cinematic_v3(const std::filesystem::path&);
 void save_cinematic_v2(const CinematicRenderDocument&, const std::filesystem::path&);
 RenderDocument parse_render_document(const std::string&);
 RenderDocument load_render_document(const std::filesystem::path&);

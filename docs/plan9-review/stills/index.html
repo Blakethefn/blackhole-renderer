@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Plan 9 animated disk emission review</title>
+<style>
+:root{color-scheme:dark;font:16px/1.45 system-ui,sans-serif;background:#0b1016;color:#e9eef5}
+body{max-width:1280px;margin:auto;padding:24px}a{color:#b9d8ff}.note{color:#b6c0cf}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}figure{margin:0;border:1px solid #344154;background:#141b25}
+img{width:100%;display:block;background:#000}figcaption{padding:10px}small{color:#b6c0cf}
+@media(max-width:850px){.grid{grid-template-columns:1fr}}
+</style>
+<h1>Plan 9 animated disk emission</h1>
+<p class="note">Actual CUDA renders from the v3 fixture. The fixed shot has a 180-frame period; the orbit camera continues over 600 frames using the same emission clock.</p>
+<p><a href="../ANIMATED_EMISSION.md">Emission contract</a> · <a href="README.md">Reproduction commands and hashes</a></p>
+<div class="grid">
+<figure><a href="fixed-000.png"><img src="fixed-000.png" alt="Fixed frame 0"></a><figcaption><strong>Fixed · frame 0</strong><br><small>phase 0/180</small></figcaption></figure>
+<figure><a href="fixed-045.png"><img src="fixed-045.png" alt="Fixed frame 45"></a><figcaption><strong>Fixed · frame 45</strong><br><small>phase 45/180</small></figcaption></figure>
+<figure><a href="fixed-090.png"><img src="fixed-090.png" alt="Fixed frame 90"></a><figcaption><strong>Fixed · frame 90</strong><br><small>phase 90/180</small></figcaption></figure>
+<figure><a href="fixed-135.png"><img src="fixed-135.png" alt="Fixed frame 135"></a><figcaption><strong>Fixed · frame 135</strong><br><small>phase 135/180</small></figcaption></figure>
+<figure><a href="fixed-179.png"><img src="fixed-179.png" alt="Fixed frame 179"></a><figcaption><strong>Fixed · frame 179</strong><br><small>phase 179/180</small></figcaption></figure>
+<figure><a href="orbit-300.png"><img src="orbit-300.png" alt="Orbit frame 300"></a><figcaption><strong>Orbit · frame 300</strong><br><small>phase 120/180</small></figcaption></figure>
+</div>

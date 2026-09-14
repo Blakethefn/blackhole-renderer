@@ -6,6 +6,7 @@ if(NOT BHR_ENABLE_CUDA)
         unit/test_blackbody.cpp
         unit/test_cli_options.cpp
         unit/test_disk_physics.cpp
+        unit/test_emission.cpp
         unit/test_elliptic.cpp
         unit/test_ferrari.cpp
         unit/test_image.cpp
@@ -50,6 +51,7 @@ add_executable(bhr_tests
     unit/test_blackbody.cpp
     unit/test_redshift.cpp
     unit/test_disk_physics.cpp
+    unit/test_emission.cpp
     unit/test_elliptic.cpp
     unit/test_ferrari.cpp
     unit/test_geokerr.cpp
