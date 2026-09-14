@@ -141,11 +141,11 @@ if(BHR_ENABLE_CUDA)
     install(FILES benchmarks/README.md benchmarks/validation.md
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/benchmarks)
     install(FILES
-        docs/gallery/README.md
-        docs/gallery/workbench.png
-        docs/gallery/schwarzschild.png
-        docs/gallery/kerr-moderate.png
-        docs/gallery/kerr-high-prograde.png
+        gallery/README.md
+        gallery/workbench.png
+        gallery/schwarzschild.png
+        gallery/kerr-moderate.png
+        gallery/kerr-high-prograde.png
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/gallery)
     install(FILES external/imgui/LICENSE.txt
         DESTINATION ${CMAKE_INSTALL_DOCDIR}/licenses

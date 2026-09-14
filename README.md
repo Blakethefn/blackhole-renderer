@@ -7,7 +7,7 @@ ImGui workbench. Both applications use the same render kernel.
 is the reference/default integrator. Geokerr is an experimental approximate
 alternative; see [validation](docs/VALIDATION.md) for its validation scope.
 
-![Real Linux CUDA/OpenGL workbench capture](docs/gallery/workbench.png)
+![Real Linux CUDA/OpenGL workbench capture](gallery/workbench.png)
 
 ## Mathematical core
 
@@ -299,13 +299,13 @@ UI separately reports kernel time, completed presentation time, and UI FPS.
 Every image below is a real 1024×576 RK45 render produced by the adjacent strict
 JSON preset with no downloaded starfield.
 
-[![Schwarzschild](docs/gallery/schwarzschild.png)](presets/gallery/schwarzschild.json)
+[![Schwarzschild](gallery/schwarzschild.png)](presets/gallery/schwarzschild.json)
 
-[![Moderate-spin Kerr](docs/gallery/kerr-moderate.png)](presets/gallery/kerr-moderate.json)
+[![Moderate-spin Kerr](gallery/kerr-moderate.png)](presets/gallery/kerr-moderate.json)
 
-[![High prograde-spin Kerr](docs/gallery/kerr-high-prograde.png)](presets/gallery/kerr-high-prograde.json)
+[![High prograde-spin Kerr](gallery/kerr-high-prograde.png)](presets/gallery/kerr-high-prograde.json)
 
-Commands and scene details are in the [gallery record](docs/gallery/README.md).
+Commands and scene details are in the [gallery record](gallery/README.md).
 Retrograde spin is not currently supported and is intentionally absent.
 
 ## Architecture and API
